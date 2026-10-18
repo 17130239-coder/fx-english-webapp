@@ -60,43 +60,41 @@ export default function TeslaModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fx-modal">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity"
-        onClick={onCancel}
-      />
+      <div className="fx-modal-backdrop" onClick={onCancel} />
 
       {/* Modal Box */}
-      <div className="relative z-10 w-full max-w-[420px] rounded-xl bg-[#141416] border border-[rgba(255,255,255,0.08)] p-6 shadow-2xl flex flex-col gap-4.5 animate-in zoom-in-95 duration-150">
+      <div className="fx-modal-container fx-modal-container-sm">
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-[rgba(255,255,255,0.06)] pb-3.5">
-          <div>
-            <h3 className="text-[16px] font-semibold text-[#F4F4F6] tracking-tight">{title}</h3>
-            {subtitle && <p className="text-[12px] text-[#71717A] mt-0.5">{subtitle}</p>}
+        <div className="fx-modal-header">
+          <div className="fx-modal-title-group">
+            <h3 className="fx-modal-title">{title}</h3>
+            {subtitle && <p className="fx-modal-subtitle">{subtitle}</p>}
           </div>
           <button
+            type="button"
             onClick={onCancel}
-            className="text-[#71717A] hover:text-[#F4F4F6] transition-colors p-1"
+            className="fx-btn-icon-raw fx-modal-close"
             title="Đóng"
           >
-            <X size={18} />
+            ×
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex flex-col gap-3 py-1">
-          <p className="text-[13.5px] leading-relaxed text-[#71717A]">{message}</p>
+        <div className="fx-modal-body">
+          <p className="fx-confirm-text">{message}</p>
 
           {isPrompt && (
-            <div className="flex flex-col gap-1.5 mt-2">
-              <label className="text-[12px] font-medium text-[#71717A]">{promptLabel}</label>
+            <div className="fx-form-group">
+              <label className="fx-label">{promptLabel}</label>
               <input
                 type="text"
                 value={val}
                 onChange={(e) => setVal(e.target.value)}
                 placeholder={promptPlaceholder}
-                className="w-full h-10 px-3 rounded-lg bg-[#0A0A0B] border border-[rgba(255,255,255,0.1)] text-[#F4F4F6] text-[13.5px] focus:outline-none focus:border-white transition-colors"
+                className="fx-input"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -110,12 +108,12 @@ export default function TeslaModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2.5 border-t border-[rgba(255,255,255,0.06)] pt-3.5">
+        <div className="fx-modal-footer">
           {cancelText && (
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 rounded-lg text-[13px] font-medium text-[#F4F4F6] border border-[rgba(255,255,255,0.1)] hover:bg-[#1C1C1F] hover:border-[rgba(255,255,255,0.2)] transition-all"
+              className="fx-btn-tesla-ghost"
             >
               {cancelText}
             </button>
@@ -123,11 +121,7 @@ export default function TeslaModal({
           <button
             type="button"
             onClick={() => onConfirm(val)}
-            className={`px-4 py-2 rounded-lg text-[13px] font-semibold transition-all ${
-              isDanger
-                ? 'bg-[#E50914] text-white hover:bg-red-700'
-                : 'bg-white text-black hover:bg-[#E4E4E7]'
-            }`}
+            className={isDanger ? 'fx-btn-tesla-danger' : 'fx-btn-tesla-primary'}
           >
             {confirmText}
           </button>

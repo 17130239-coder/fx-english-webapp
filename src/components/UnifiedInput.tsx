@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { UploadCloud, Play, FileText, ArrowRight } from 'lucide-react';
+import { Paperclip, ArrowRight, Play } from 'lucide-react';
 import { parseSubtitles, analyzeSubtitlesOffline } from '@/lib/analyzer';
 
 interface UnifiedInputProps {
@@ -64,7 +64,7 @@ export default function UnifiedInput({ onAnalysisComplete, onToast }: UnifiedInp
 
       const result = analyzeSubtitlesOffline(cues);
       onAnalysisComplete(result, cues, title);
-      onToast(`Đã phân tích ${result?.totals?.uniqueWords || 0} từ vựng ngoại tuyến (Không dùng AI).`, 'success');
+      onToast(`Đã phân tích ${result?.totals?.uniqueWords || 0} từ vựng ngoại tuyến (Zero AI).`, 'success');
     } catch (err: any) {
       console.error('NLP Error:', err);
       onToast(`Lỗi phân tích: ${err.message || 'Lỗi xử lý'}`, 'error');
@@ -86,13 +86,17 @@ export default function UnifiedInput({ onAnalysisComplete, onToast }: UnifiedInp
   };
 
   return (
-    <div className="w-full rounded-xl bg-[#141416] border border-[rgba(255,255,255,0.06)] p-5 flex flex-col gap-4">
+    <section className="fx-input-section">
+      <div className="fx-section-header">
+        <h2>Nguồn Phụ Đề & Tách Từ Vựng</h2>
+      </div>
+
       {/* Hidden File Input */}
       <input
         type="file"
         ref={fileInputRef}
-        accept=".srt,.vtt,.txt"
-        className="hidden"
+        accept=".srt,.vtt,.txt,.xml"
+        style={{ display: 'none' }}
         onChange={(e) => {
           if (e.target.files && e.target.files[0]) {
             handleFile(e.target.files[0]);
@@ -100,13 +104,9 @@ export default function UnifiedInput({ onAnalysisComplete, onToast }: UnifiedInp
         }}
       />
 
-      {/* Dropzone & Text Input Box */}
+      {/* Unified Input Box (Dropzone + Paste + File Attachment) */}
       <div
-        className={`relative w-full rounded-lg border transition-all ${
-          isDragging
-            ? 'border-white bg-[#1C1C1F]'
-            : 'border-[rgba(255,255,255,0.08)] bg-[#0A0A0B] focus-within:border-[rgba(255,255,255,0.2)]'
-        }`}
+        className={`fx-unified-input-box ${isDragging ? 'dragover' : ''}`}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -121,72 +121,79 @@ export default function UnifiedInput({ onAnalysisComplete, onToast }: UnifiedInp
         }}
       >
         <textarea
+          id="fx-raw-subtitles"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Kéo thả file .SRT / .VTT / .TXT hoặc dán phụ đề tiếng Anh vào đây..."
-          rows={3}
-          className="w-full p-4 bg-transparent text-[#F4F4F6] text-[13.5px] font-mono leading-relaxed resize-none focus:outline-none placeholder:text-[#52525B]"
+          placeholder="Dán nội dung phụ đề tiếng Anh vào đây, hoặc kéo thả file .srt, .vtt, .txt trực tiếp vào khung này..."
           spellCheck={false}
         />
 
-        <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.04)] px-4 py-2.5 bg-[#141416]/50">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 text-[12px] font-medium text-[#71717A] hover:text-[#F4F4F6] transition-colors"
-          >
-            <UploadCloud size={14} />
-            <span>Chọn file từ máy tính</span>
-          </button>
+        <div className="fx-unified-toolbar">
+          <div className="fx-unified-left">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="fx-btn-attach"
+              title="Chọn file từ máy tính (.srt, .vtt, .txt)"
+            >
+              <Paperclip size={14} />
+              <span>Đính kèm file</span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            disabled={isProcessing || !text.trim()}
-            onClick={() => handleProcessText(text)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-white text-black text-[12.5px] font-semibold hover:bg-[#E4E4E7] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            <span>{isProcessing ? 'Đang phân tích...' : 'Tách từ vựng'}</span>
-            <ArrowRight size={13} />
-          </button>
+          <div className="fx-unified-right">
+            <button
+              type="button"
+              onClick={() => {
+                setText(SAMPLE_INCEPTION);
+                handleProcessText(SAMPLE_INCEPTION, 'Inception (2010)');
+              }}
+              className="fx-btn-text"
+              title="Thử mẫu Inception (.srt)"
+            >
+              Mẫu Inception
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setText(SAMPLE_INTERSTELLAR);
+                handleProcessText(SAMPLE_INTERSTELLAR, 'Interstellar (2014)');
+              }}
+              className="fx-btn-text"
+              title="Thử mẫu Interstellar (.vtt)"
+            >
+              Mẫu Interstellar
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setText(SAMPLE_TED);
+                handleProcessText(SAMPLE_TED, 'TED Talk (Text)');
+              }}
+              className="fx-btn-text"
+              title="Thử mẫu TED Talk (.txt)"
+            >
+              Mẫu TED Talk
+            </button>
+
+            <button
+              type="button"
+              disabled={isProcessing || !text.trim()}
+              onClick={() => handleProcessText(text)}
+              className="fx-btn-tesla-primary-sm"
+              style={{
+                opacity: isProcessing || !text.trim() ? 0.4 : 1,
+                cursor: isProcessing || !text.trim() ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <span>{isProcessing ? 'Đang phân tích...' : 'Tách từ vựng'}</span>
+              <ArrowRight size={13} />
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* One-click Sample Presets */}
-      <div className="flex items-center justify-between gap-3 flex-wrap text-[12px] text-[#71717A]">
-        <div className="flex items-center gap-2">
-          <FileText size={13} />
-          <span>Mẫu phụ đề thử nhanh:</span>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => {
-              setText(SAMPLE_INCEPTION);
-              handleProcessText(SAMPLE_INCEPTION, 'Inception (2010)');
-            }}
-            className="px-2.5 py-1 rounded bg-[#0A0A0B] border border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.18)] text-[#A1A1AA] hover:text-[#F4F4F6] transition-all"
-          >
-            Inception (SRT)
-          </button>
-          <button
-            onClick={() => {
-              setText(SAMPLE_INTERSTELLAR);
-              handleProcessText(SAMPLE_INTERSTELLAR, 'Interstellar (2014)');
-            }}
-            className="px-2.5 py-1 rounded bg-[#0A0A0B] border border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.18)] text-[#A1A1AA] hover:text-[#F4F4F6] transition-all"
-          >
-            Interstellar (VTT)
-          </button>
-          <button
-            onClick={() => {
-              setText(SAMPLE_TED);
-              handleProcessText(SAMPLE_TED, 'TED Talk (Text)');
-            }}
-            className="px-2.5 py-1 rounded bg-[#0A0A0B] border border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.18)] text-[#A1A1AA] hover:text-[#F4F4F6] transition-all"
-          >
-            TED Talk (TXT)
-          </button>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }

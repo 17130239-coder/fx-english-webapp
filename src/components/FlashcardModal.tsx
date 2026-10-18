@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Volume2, RotateCw, ChevronLeft, ChevronRight, Check, Star } from 'lucide-react';
+import { X, Volume2, RotateCw, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { VocabItem } from '@/lib/types';
 import { speakWord } from '@/lib/speech';
 
@@ -87,179 +87,161 @@ export default function FlashcardModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fx-flashcard-modal">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={onClose} />
+      <div className="fx-fc-backdrop" onClick={onClose} />
 
       {/* Main Container */}
-      <div className="relative z-10 w-full max-w-lg flex flex-col items-center gap-4 animate-in zoom-in-95 duration-150">
+      <div className="fx-fc-container">
         {/* Top Bar */}
-        <div className="w-full flex items-center justify-between px-2">
-          <span className="text-[13px] font-mono text-[#A1A1AA]">
+        <div className="fx-fc-topbar">
+          <span className="fx-fc-counter">
             {idx + 1} / {items.length}
           </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-[#52525B] hidden sm:inline">Phím Space: lật thẻ · 1-4: đánh giá</span>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-[#71717A] hover:text-white transition-colors"
-              title="Đóng"
-            >
-              <X size={18} />
-            </button>
-          </div>
+          <span className="fx-fc-tip">
+            Phím tắt: [Space/Enter] Lật thẻ · [1-4] Đánh giá · [←/→] Chuyển thẻ
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="fx-fc-close"
+            title="Đóng (Esc)"
+          >
+            ×
+          </button>
         </div>
 
-        {/* 3D Card Box */}
-        <div
-          onClick={() => setIsFlipped((f) => !f)}
-          className="perspective-1000 w-full h-[340px] cursor-pointer"
-        >
-          <div
-            className={`preserve-3d relative w-full h-full transition-transform duration-500 rounded-2xl ${
-              isFlipped ? 'rotate-y-180' : ''
-            }`}
-          >
+        {/* 3D Scene */}
+        <div className="fx-fc-scene" onClick={() => setIsFlipped(!isFlipped)}>
+          <div className={`fx-fc-card ${isFlipped ? 'is-flipped' : ''}`}>
             {/* FRONT FACE */}
-            <div className="backface-hidden absolute inset-0 rounded-2xl bg-[#141416] border border-[rgba(255,255,255,0.08)] p-6 flex flex-col justify-between shadow-2xl">
-              <div className="flex items-center justify-between text-[11px] text-[#71717A]">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold uppercase tracking-wider text-[#A1A1AA]">
-                    {current.posLabelVi || current.pos || (isSentence ? 'GIAO TIẾP' : 'TỪ VỰNG')}
-                  </span>
-                  {current.cefr && (
-                    <span className="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.08)] text-white font-mono font-bold">
-                      {current.cefr}
-                    </span>
-                  )}
+            <div className="fx-fc-face fx-fc-front">
+              <div className="fx-fc-meta-specs">
+                <span>{current.posLabelVi || current.pos || 'TỪ VỰNG'}</span>
+                {current.cefr && <span>· {current.cefr}</span>}
+              </div>
+
+              <div className="fx-fc-word" style={{ fontSize: isSentence ? '20px' : '30px' }}>
+                {wordText}
+              </div>
+
+              {current.ipa && (
+                <div className="fx-fc-phonetic-row">
+                  <span>{current.ipa}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speakWord(wordText, 1.0);
+                    }}
+                    className="fx-btn-icon-raw"
+                    title="Nghe phát âm"
+                  >
+                    <Volume2 size={14} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    speakWord(wordText, 1.0);
-                  }}
-                  className="p-1 text-[#71717A] hover:text-white transition-colors"
-                  title="Nghe phát âm"
-                >
-                  <Volume2 size={16} />
-                </button>
-              </div>
+              )}
 
-              {/* Center Content */}
-              <div className="flex flex-col items-center text-center my-auto px-4">
-                <h3 className="text-[26px] font-bold text-[#F4F4F6] tracking-tight">
-                  {wordText}
-                </h3>
-                {current.ipa && (
-                  <p className="text-[14px] font-mono text-[#71717A] mt-1.5">{current.ipa}</p>
-                )}
-                {contextSentence && (
-                  <p className="text-[13px] text-[#8E8E93] italic leading-relaxed mt-4 max-w-sm line-clamp-3">
-                    "{contextSentence}"
-                  </p>
-                )}
-              </div>
+              {contextSentence && (
+                <div className="fx-fc-context-box">
+                  "{contextSentence}"
+                </div>
+              )}
 
-              {/* Bottom Hint */}
-              <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-[#52525B]">
-                <RotateCw size={12} />
-                <span>Bấm vào thẻ hoặc phím Space để xem nghĩa</span>
+              <div className="fx-fc-flip-hint">
+                <RotateCw size={11} style={{ display: 'inline', marginRight: '4px' }} />
+                <span>Nhấp chuột hoặc bấm Phím Cách để lật mặt sau</span>
               </div>
             </div>
 
             {/* BACK FACE */}
-            <div className="backface-hidden rotate-y-180 absolute inset-0 rounded-2xl bg-[#17171A] border border-[rgba(255,255,255,0.12)] p-6 flex flex-col justify-between shadow-2xl">
-              <div className="flex items-center justify-between text-[11px] text-[#71717A]">
-                <span className="font-mono text-[#A1A1AA] uppercase tracking-wider">NGHĨA TIẾNG VIỆT</span>
-                <span className="text-[11px] font-medium text-[#10B981]">Mặt sau</span>
+            <div className="fx-fc-face fx-fc-back">
+              <span className="fx-fc-back-label">Nghĩa tiếng Việt</span>
+              <div className="fx-fc-trans">
+                {current.vietnamese || current.meaningVi || 'Đang cập nhật...'}
               </div>
 
-              {/* Center Content */}
-              <div className="flex flex-col items-center text-center my-auto px-4">
-                <p className="text-[22px] font-bold text-[#10B981] leading-snug">
-                  {current.vietnamese || current.meaningVi}
-                </p>
-                {current.lemma && current.lemma !== current.word && (
-                  <p className="text-[13px] text-[#71717A] mt-2 font-mono">
-                    Từ gốc: <span className="text-[#F4F4F6]">{current.lemma}</span>
-                  </p>
-                )}
-                {current.usageNote && (
-                  <p className="text-[12.5px] text-[#A1A1AA] mt-3 italic max-w-sm">
-                    {current.usageNote}
-                  </p>
-                )}
-              </div>
-
-              {/* Bottom Actions */}
-              <div className="flex items-center justify-between text-[11px] text-[#71717A]">
-                <span>Phím 1-4 để đánh giá nhớ</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleMaster(current);
-                  }}
-                  className="flex items-center gap-1 text-[#10B981] hover:underline"
-                >
-                  <Check size={12} />
-                  <span>Đánh dấu đã thuộc</span>
-                </button>
-              </div>
+              {contextSentence && (
+                <div className="fx-fc-context-box" style={{ marginTop: '10px' }}>
+                  "{contextSentence}"
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* SRS Rating Control Bar */}
-        <div className="w-full flex items-center justify-between gap-2 mt-1">
+        {/* Bottom Controls */}
+        <div className="fx-fc-controls">
           <button
-            onClick={handlePrev}
+            type="button"
             disabled={idx === 0}
-            className="p-2.5 rounded-xl bg-[#141416] border border-[rgba(255,255,255,0.08)] text-[#71717A] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            title="Thẻ trước"
+            onClick={handlePrev}
+            className="fx-btn-tesla-ghost-sm"
+            style={{ opacity: idx === 0 ? 0.3 : 1 }}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
+            <span>Trước</span>
           </button>
 
-          {/* SRS 4 Levels */}
-          <div className="flex-1 grid grid-cols-4 gap-2">
-            <button
-              onClick={() => handleRate(1)}
-              className="py-2.5 rounded-xl bg-[#141416] border border-red-900/30 hover:border-red-500/50 hover:bg-red-950/20 text-red-400 text-[12px] font-semibold transition-all flex flex-col items-center"
-            >
-              <span>Quên (1)</span>
-              <span className="text-[10px] text-red-400/60 font-mono">1 ngày</span>
-            </button>
-            <button
-              onClick={() => handleRate(2)}
-              className="py-2.5 rounded-xl bg-[#141416] border border-amber-900/30 hover:border-amber-500/50 hover:bg-amber-950/20 text-amber-400 text-[12px] font-semibold transition-all flex flex-col items-center"
-            >
-              <span>Khó (2)</span>
-              <span className="text-[10px] text-amber-400/60 font-mono">2 ngày</span>
-            </button>
-            <button
-              onClick={() => handleRate(3)}
-              className="py-2.5 rounded-xl bg-[#141416] border border-blue-900/30 hover:border-blue-500/50 hover:bg-blue-950/20 text-blue-400 text-[12px] font-semibold transition-all flex flex-col items-center"
-            >
-              <span>Nhớ (3)</span>
-              <span className="text-[10px] text-blue-400/60 font-mono">3 ngày</span>
-            </button>
-            <button
-              onClick={() => handleRate(4)}
-              className="py-2.5 rounded-xl bg-[#141416] border border-emerald-900/30 hover:border-emerald-500/50 hover:bg-emerald-950/20 text-emerald-400 text-[12px] font-semibold transition-all flex flex-col items-center"
-            >
-              <span>Dễ (4)</span>
-              <span className="text-[10px] text-emerald-400/60 font-mono">4 ngày</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsFlipped(!isFlipped)}
+            className="fx-btn-tesla-ghost-sm"
+          >
+            <RotateCw size={13} />
+            <span>Lật thẻ</span>
+          </button>
 
           <button
+            type="button"
             onClick={handleNext}
-            className="p-2.5 rounded-xl bg-[#141416] border border-[rgba(255,255,255,0.08)] text-[#71717A] hover:text-white transition-all"
-            title="Thẻ sau"
+            className="fx-btn-tesla-ghost-sm"
           >
-            <ChevronRight size={16} />
+            <span>Tiếp theo</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* SRS Rating Bar */}
+        <div className="fx-fc-srs-bar">
+          <button
+            type="button"
+            onClick={() => handleRate(1)}
+            className="fx-srs-btn fx-srs-again"
+            title="Bấm phím 1: Chưa nhớ, cần ôn lại ngay"
+          >
+            <span className="fx-srs-name">Chưa nhớ</span>
+            <span className="fx-srs-time">[1] &lt;1m</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleRate(2)}
+            className="fx-srs-btn fx-srs-hard"
+            title="Bấm phím 2: Khó nhớ"
+          >
+            <span className="fx-srs-name">Khó</span>
+            <span className="fx-srs-time">[2] 10m</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleRate(3)}
+            className="fx-srs-btn fx-srs-good"
+            title="Bấm phím 3: Nhớ tốt"
+          >
+            <span className="fx-srs-name">Nhớ tốt</span>
+            <span className="fx-srs-time">[3] 1d</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleRate(4)}
+            className="fx-srs-btn fx-srs-easy"
+            title="Bấm phím 4: Rất dễ, thêm ngay vào Master List"
+          >
+            <span className="fx-srs-name">Rất dễ</span>
+            <span className="fx-srs-time">[4] Đã thuộc</span>
           </button>
         </div>
       </div>

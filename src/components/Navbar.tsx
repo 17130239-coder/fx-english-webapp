@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Layers, Download, FileSpreadsheet, Database } from 'lucide-react';
+import { Layers, Download, FileSpreadsheet } from 'lucide-react';
 
 interface NavbarProps {
   activeView: 'studio' | 'master';
@@ -23,89 +23,91 @@ export default function Navbar({
   onExportCsv
 }: NavbarProps) {
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#0A0A0B]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.06)] px-6 py-3.5">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-        {/* Brand & Mode Switcher */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-[17px] font-bold text-[#F4F4F6] tracking-tight">FX Studio</h1>
-            <span className="text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 rounded bg-[rgba(255,255,255,0.05)] text-[#71717A] border border-[rgba(255,255,255,0.06)]">
-              Web Dashboard
-            </span>
-          </div>
-
-          <div className="flex items-center p-1 rounded-lg bg-[#141416] border border-[rgba(255,255,255,0.06)]">
-            <button
-              onClick={() => onViewChange('studio')}
-              className={`px-3 py-1.5 rounded-md text-[12.5px] font-medium transition-all ${
-                activeView === 'studio'
-                  ? 'bg-white text-black font-semibold'
-                  : 'text-[#71717A] hover:text-[#F4F4F6]'
-              }`}
-            >
-              Phân tích & Lịch sử
-            </button>
-            <button
-              onClick={() => onViewChange('master')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-medium transition-all ${
-                activeView === 'master'
-                  ? 'bg-white text-black font-semibold'
-                  : 'text-[#71717A] hover:text-[#F4F4F6]'
-              }`}
-            >
-              <span>Master Known List</span>
-              <span className={`text-[11px] px-1.5 py-0.2 rounded-full ${
-                activeView === 'master'
-                  ? 'bg-black/10 text-black font-bold'
-                  : 'bg-[rgba(255,255,255,0.08)] text-[#A1A1AA]'
-              }`}>
-                {masterCount}
-              </span>
-            </button>
-          </div>
+    <header className="fx-navbar">
+      <div className="fx-nav-brand-group">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h1 className="fx-nav-title">FX English</h1>
+          <span style={{
+            fontSize: '10px',
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            color: 'var(--fx-text-secondary)',
+            border: '1px solid var(--fx-border-subtle)'
+          }}>
+            Web Dashboard
+          </span>
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-3">
-          {/* Neon DB Status */}
-          <div
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#141416] border border-[rgba(255,255,255,0.06)] text-[12px] text-[#A1A1AA]"
-            title={dbConnected ? 'Đã kết nối Neon Serverless Postgres' : 'Đang kết nối Neon DB...'}
-          >
-            <span className={`w-2 h-2 rounded-full shrink-0 ${dbConnected ? 'bg-[#10B981]' : 'bg-[#EAB308] animate-pulse'}`} />
-            <Database size={13} className="text-[#71717A]" />
-            <span className="hidden sm:inline">Neon Cloud</span>
-          </div>
-
-          {/* Flashcards */}
+        <nav className="fx-nav-switcher">
           <button
-            onClick={onOpenFlashcards}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium text-[#F4F4F6] border border-[rgba(255,255,255,0.1)] hover:bg-[#1C1C1F] hover:border-[rgba(255,255,255,0.2)] transition-all"
+            type="button"
+            onClick={() => onViewChange('studio')}
+            className={`fx-nav-tab ${activeView === 'studio' ? 'active' : ''}`}
+            title="Màn hình phân tích từ vựng & phụ đề"
           >
-            <Layers size={14} />
-            <span>Ôn Flashcard 3D</span>
+            <span>Phim & Phụ đề</span>
           </button>
+          <button
+            type="button"
+            onClick={() => onViewChange('master')}
+            className={`fx-nav-tab ${activeView === 'master' ? 'active' : ''}`}
+            title="Danh sách từ & câu đã biết (Master List)"
+          >
+            <span>Master List</span>
+            <span className="fx-nav-pill-count">{masterCount}</span>
+          </button>
+        </nav>
+      </div>
 
-          {/* Exports */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onExportAnki}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-[#71717A] hover:text-[#F4F4F6] hover:bg-[#141416] transition-colors"
-              title="Xuất thẻ Anki (.txt)"
-            >
-              <Download size={13} />
-              <span className="hidden sm:inline">Anki</span>
-            </button>
-            <button
-              onClick={onExportCsv}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-[#71717A] hover:text-[#F4F4F6] hover:bg-[#141416] transition-colors"
-              title="Xuất bảng tính (.csv)"
-            >
-              <FileSpreadsheet size={13} />
-              <span className="hidden sm:inline">CSV</span>
-            </button>
-          </div>
-        </div>
+      <div className="fx-nav-actions">
+        {/* Flashcards */}
+        <button
+          type="button"
+          onClick={onOpenFlashcards}
+          className="fx-btn-tesla-primary-sm"
+          title="Ôn tập từ vựng bằng Flashcards 3D"
+        >
+          <Layers size={13} />
+          <span>Flashcards</span>
+        </button>
+
+        {/* Anki Export */}
+        <button
+          type="button"
+          onClick={onExportAnki}
+          className="fx-btn-tesla-ghost-sm"
+          title="Xuất bộ thẻ Anki (.txt)"
+        >
+          <Download size={13} />
+          <span>Anki</span>
+        </button>
+
+        {/* CSV Export */}
+        <button
+          type="button"
+          onClick={onExportCsv}
+          className="fx-btn-tesla-ghost-sm"
+          title="Xuất file CSV"
+        >
+          <FileSpreadsheet size={13} />
+          <span>CSV</span>
+        </button>
+
+        {/* Minimal Neon Status Dot (6px circle) */}
+        <span
+          className={`fx-neon-dot-wrap ${dbConnected ? '' : 'syncing'}`}
+          title={dbConnected ? 'Neon Serverless Postgres: Đã kết nối' : 'Đang kết nối cơ sở dữ liệu...'}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        >
+          <span className="fx-neon-dot" />
+          <span style={{ fontSize: '11px', color: 'var(--fx-text-secondary)', fontWeight: 500 }}>
+            Neon Cloud
+          </span>
+        </span>
       </div>
     </header>
   );

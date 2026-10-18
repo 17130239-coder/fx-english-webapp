@@ -573,7 +573,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-[#F4F4F6] flex flex-col">
+    <div className="fx-studio-layout">
       {/* Top Navbar */}
       <Navbar
         activeView={activeView}
@@ -586,15 +586,9 @@ export default function Dashboard() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
+      <main className="fx-container" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
         {activeView === 'studio' ? (
           <>
-            {/* Unified Input (Subtitle Dropzone & Offline NLP Analyzer) */}
-            <UnifiedInput
-              onAnalysisComplete={handleAnalysisComplete}
-              onToast={showToast}
-            />
-
             {/* Cloud Scanned Movies History */}
             <ScannedHistory
               movies={movies}
@@ -602,6 +596,12 @@ export default function Dashboard() {
               onSelectMovie={(m) => loadMovieDetails(m)}
               onDeleteMovie={handleDeleteMovie}
               onClearAll={handleClearAllMovies}
+            />
+
+            {/* Unified Input (Subtitle Dropzone & Offline NLP Analyzer) */}
+            <UnifiedInput
+              onAnalysisComplete={handleAnalysisComplete}
+              onToast={showToast}
             />
 
             {/* Vocabulary Grid */}

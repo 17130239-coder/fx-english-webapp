@@ -1,5 +1,12 @@
 import type { Metadata } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin', 'vietnamese'],
+  display: 'swap',
+  variable: '--fx-font-main',
+});
 
 export const metadata: Metadata = {
   title: 'FX English — Web Dashboard',
@@ -12,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className="dark">
-      <body className="bg-[#0A0A0B] text-[#F4F4F6] selection:bg-white selection:text-black">
+    <html lang="vi" className={`dark ${plusJakartaSans.variable}`}>
+      <body className={plusJakartaSans.className}>
         {children}
       </body>
     </html>
