@@ -482,16 +482,21 @@ export default function Dashboard() {
     }
   };
 
-  const masterVocabItems: VocabItem[] = masterItems.map((m) => ({
-    word: m.text,
-    pos: m.pos || 'noun',
-    cefr: m.cefr || 'B1',
-    ipa: m.ipa || '',
-    vietnamese: m.knownMeanings.join(', '),
-    meaningVi: m.knownMeanings.join(', '),
-    frequency: 1,
-    contexts: m.context ? [{ text: m.context }] : []
-  }));
+  const masterVocabItems: VocabItem[] = masterItems.map((m) => {
+    const meaning = Array.isArray(m.knownMeanings)
+      ? m.knownMeanings.join(', ')
+      : (typeof m.knownMeanings === 'string' ? m.knownMeanings : '');
+    return {
+      word: m.text,
+      pos: m.pos || 'noun',
+      cefr: m.cefr || 'B1',
+      ipa: m.ipa || '',
+      vietnamese: meaning,
+      meaningVi: meaning,
+      frequency: 1,
+      contexts: m.context ? [{ text: m.context }] : []
+    };
+  });
 
   return (
     <div className="fx-studio-layout">
