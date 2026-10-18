@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   try {
     await ensureSchema();
     const body = await req.json();
-    const { text, type, pos, meanings } = body;
+    const { text, type, pos, meanings, knownMeanings } = body;
 
     if (!text || !String(text).trim()) {
       return NextResponse.json({ success: false, error: 'Text is required' }, { status: 400 });
@@ -45,7 +45,8 @@ export async function POST(req: Request) {
     const clean = String(text).trim().toLowerCase();
     const cleanType = String(type || 'word');
     const cleanPos = String(pos || 'N');
-    const newMeanings = Array.isArray(meanings) ? meanings.map(m => String(m).trim()).filter(Boolean) : [];
+    const rawMeanings = meanings || knownMeanings;
+    const newMeanings = Array.isArray(rawMeanings) ? rawMeanings.map(m => String(m).trim()).filter(Boolean) : [];
 
     // Check existing
     const existing = await sql`
@@ -122,4 +123,8 @@ export async function DELETE(req: Request) {
     console.error('Error deleting from master list:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200 });
 }

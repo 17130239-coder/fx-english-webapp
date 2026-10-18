@@ -108,3 +108,7 @@ export async function DELETE() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200 });
+}
