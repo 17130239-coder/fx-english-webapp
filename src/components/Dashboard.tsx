@@ -10,11 +10,7 @@ import ShortcutsModal from './ShortcutsModal';
 import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
-import {
-  exportMasterToAnki,
-  exportMasterToCsv,
-  triggerDownload
-} from '@/lib/export';
+import { triggerDownload } from '@/lib/export';
 import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 
 export default function Dashboard() {
@@ -551,48 +547,6 @@ export default function Dashboard() {
     });
   };
 
-  // Exports (Master List on Home View)
-  const handleExportAnki = () => {
-    if (masterItems.length === 0) {
-      showToast('Master List hiện đang trống, chưa có từ vựng nào để xuất.', 'warning');
-      return;
-    }
-    const content = exportMasterToAnki(masterItems);
-    triggerDownload(content, 'fx_master_known_list_anki.txt', 'text/plain;charset=utf-8');
-    showToast('Đã xuất Anki Master List thành công', 'success');
-  };
-
-  const handleExportCsv = () => {
-    if (masterItems.length === 0) {
-      showToast('Master List hiện đang trống, chưa có từ vựng nào để xuất.', 'warning');
-      return;
-    }
-    const content = exportMasterToCsv(masterItems);
-    triggerDownload(content, 'fx_master_known_list.csv', 'text/csv;charset=utf-8');
-    showToast('Đã xuất CSV Master List thành công', 'success');
-  };
-
-  const handleImportMasterItems = async (items: Array<{ text: string; meanings?: string[]; pos?: string; type?: string }>) => {
-    if (!items || items.length === 0) return;
-    try {
-      showToast(`Đang nhập ${items.length} từ vào Master List...`, 'info');
-      const res = await fetch('/api/master-list', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(`Đã nhập thành công ${data.count || items.length} từ vào Master List`, 'success');
-        fetchMasterList();
-      } else {
-        showToast(`Lỗi nhập dữ liệu: ${data.error || 'Thao tác thất bại'}`, 'error');
-      }
-    } catch (err: any) {
-      showToast(`Lỗi nhập dữ liệu: ${err.message || 'Lỗi mạng'}`, 'error');
-    }
-  };
-
   // Export all vocabulary across all movies as JSON
   const handleExportAllMoviesJson = async () => {
     if (movies.length === 0) {
@@ -754,9 +708,6 @@ export default function Dashboard() {
               onAddMeaning={handleAddMeaningInline}
               onRemoveMeaning={handleRemoveMeaning}
               onClearAll={handleClearAllMaster}
-              onExportAnki={handleExportAnki}
-              onExportCsv={handleExportCsv}
-              onImportItems={handleImportMasterItems}
               loading={loadingMaster}
             />
           )}
