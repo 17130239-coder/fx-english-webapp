@@ -44,11 +44,18 @@ export async function ensureSchema() {
             text TEXT NOT NULL UNIQUE,
             type VARCHAR(50) DEFAULT 'word',
             pos VARCHAR(20) DEFAULT 'N',
+            cefr VARCHAR(10),
+            ipa TEXT,
+            context TEXT,
             known_meanings JSONB DEFAULT '[]'::jsonb,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             updated_at TIMESTAMPTZ DEFAULT NOW()
           );
         `;
+
+        await sql`ALTER TABLE fx_master_known_list ADD COLUMN IF NOT EXISTS cefr VARCHAR(10);`;
+        await sql`ALTER TABLE fx_master_known_list ADD COLUMN IF NOT EXISTS ipa TEXT;`;
+        await sql`ALTER TABLE fx_master_known_list ADD COLUMN IF NOT EXISTS context TEXT;`;
 
         schemaEnsured = true;
       } catch (err) {

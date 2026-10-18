@@ -1,10 +1,73 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, Trash2, Volume2, Search, X, Upload } from 'lucide-react';
+import { Plus, Trash2, Volume2, Search, Upload } from 'lucide-react';
 import { MasterItem } from '@/lib/types';
 import { speakWord } from '@/lib/speech';
 import { MasterListSkeleton } from './Skeletons';
+
+function cleanAndNormalizeSentence(text: string): string {
+  if (!text) return '';
+  let str = text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  str = str.replace(/^[-–—]\s*/, '');
+  str = str.replace(/\[.*?\]|\(.*?\)/g, '').trim();
+
+  const letters = str.replace(/[^a-zA-Z]/g, '');
+  const upper = str.replace(/[^A-Z]/g, '');
+  if (letters.length >= 3 && (upper.length / letters.length) > 0.65) {
+    str = str.toLowerCase();
+    str = str.replace(/(^\s*|[.!?]\s+)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase());
+    str = str.replace(/\b(i)\b/g, 'I');
+    str = str.replace(/\bi'([a-z]+)\b/g, (_, p1) => "I'" + p1);
+  }
+  return str;
+}
+
+function renderHighlightedContext(sentence: string, word: string) {
+  if (!sentence) return null;
+  const normalized = cleanAndNormalizeSentence(sentence);
+  if (!word) return normalized;
+
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`\\b(${escaped})\\b`, 'gi');
+  const parts = normalized.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <b key={i} className="fx-quote-highlight">
+            {part}
+          </b>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
+const POS_LABELS_MAP: Record<string, string> = {
+  n: 'Danh từ',
+  noun: 'Danh từ',
+  v: 'Động từ',
+  verb: 'Động từ',
+  adj: 'Tính từ',
+  adjective: 'Tính từ',
+  adv: 'Trạng từ',
+  adverb: 'Trạng từ',
+  phrase: 'Cụm từ',
+  pattern: 'Cấu trúc câu',
+  sentence: 'Câu giao tiếp'
+};
+
+function formatPosLabel(pos?: string, type?: string): string {
+  if (type === 'pattern' || (pos && pos.toLowerCase() === 'pattern')) return 'Cấu trúc câu';
+  if (type === 'phrase' || (pos && (pos.toLowerCase() === 'phrase' || pos.toLowerCase() === 'idiom'))) return 'Cụm từ';
+  if (type === 'sentence') return 'Câu giao tiếp';
+  const clean = (pos || '').toLowerCase().trim();
+  return POS_LABELS_MAP[clean] || (pos ? pos.toUpperCase() : 'Danh từ');
+}
 
 interface MasterListViewProps {
   items: MasterItem[];
@@ -416,36 +479,25 @@ export default function MasterListView({
       ) : (
         <div key={activeTab} className="fx-cards-grid fx-tab-pane">
           {filtered.map((item) => {
-            const isPolysemy = Array.isArray(item.knownMeanings) && item.knownMeanings.length > 1;
-            const isPat = item.type === 'pattern' || (item.pos || '').toUpperCase() === 'PATTERN' || Boolean(item.patternTemplate);
-            const isPhr = item.type === 'phrase' || (item.pos || '').toUpperCase() === 'PHRASE' || (item.pos || '').toUpperCase() === 'IDIOM' || item.type === 'sentence';
-            const displayPos = isPat ? 'Cấu trúc' : isPhr ? 'Cụm từ' : (item.pos || 'N');
+            const posLabel = formatPosLabel(item.pos, item.type);
+            const cefrLevel = item.cefr || '';
+            const meanings = Array.isArray(item.knownMeanings)
+              ? item.knownMeanings.filter(Boolean).join(', ')
+              : (typeof item.knownMeanings === 'string' ? item.knownMeanings : '');
+            const rawContext = item.context
+              ? cleanAndNormalizeSentence(item.context.replace(/\d{2}:\d{2}(:\d{2})?/g, '').trim())
+              : '';
 
             return (
               <div key={item.id || item.text} className="fx-word-card">
-                {/* Line 1: Word + POS + CEFR */}
+                {/* Line 1: Word + POS + CEFR + Actions */}
                 <div className="fx-card-line-1">
                   <div className="fx-card-word-wrap">
                     <span className="fx-card-word">{item.text}</span>
                     <span className="fx-card-specs">
-                      {displayPos}
-                      {item.cefr && ` · ${item.cefr}`}
+                      {posLabel}
+                      {cefrLevel && ` · ${cefrLevel}`}
                     </span>
-                    {isPat && (
-                      <span className="fx-badge-new-meaning" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60A5FA', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
-                        Cấu trúc câu
-                      </span>
-                    )}
-                    {isPhr && !isPat && (
-                      <span className="fx-badge-new-meaning" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#FACC15', borderColor: 'rgba(234, 179, 8, 0.3)' }}>
-                        Cụm từ
-                      </span>
-                    )}
-                    {isPolysemy && (
-                      <span className="fx-badge-new-meaning" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#93C5FD', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
-                        Đa nghĩa
-                      </span>
-                    )}
                   </div>
 
                   <div className="fx-card-meta-actions">
@@ -462,45 +514,29 @@ export default function MasterListView({
                       onClick={() => onRemoveWord(item.text)}
                       className="fx-btn-icon-raw"
                       style={{ color: 'var(--fx-text-muted)' }}
-                      title="Xóa khỏi Master List"
+                      title="Xóa khỏi danh sách đã thuộc"
                     >
                       <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
 
-                {/* Line 2: Accumulated Vietnamese Meanings Chips */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
-                  {Array.isArray(item.knownMeanings) && item.knownMeanings.map((meaning, mIdx) => (
-                    <span key={mIdx} className="fx-meaning-pill">
-                      <span>{meaning}</span>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveMeaning(item.text, meaning)}
-                        className="fx-btn-remove-meaning"
-                        title={`Xóa nghĩa "${meaning}"`}
-                      >
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))}
-
-                  <button
-                    type="button"
-                    onClick={() => onAddMeaning(item.text)}
-                    className="fx-btn-add-meaning-inline"
-                    title="Thêm nghĩa tiếng Việt mới cho từ này"
-                  >
-                    <Plus size={10} />
-                    <span>Thêm nghĩa</span>
-                  </button>
+                {/* Line 2: IPA + Vietnamese Translation */}
+                <div className="fx-card-line-2">
+                  {item.ipa && (
+                    <>
+                      <span className="fx-card-ipa">{item.ipa}</span>
+                      <span className="fx-card-dot-sep">·</span>
+                    </>
+                  )}
+                  <span className="fx-card-trans">{meanings || 'Chưa có nghĩa'}</span>
                 </div>
 
-                {/* Line 3: Direct Quote (Clean, NO timestamps!) */}
-                {item.context && (
+                {/* Line 3: Direct Quote from Subtitle */}
+                {rawContext && (
                   <div className="fx-card-line-3">
                     <p className="fx-card-quote">
-                      "{item.context.replace(/\d{2}:\d{2}(:\d{2})?/g, '').trim()}"
+                      "{renderHighlightedContext(rawContext, item.text)}"
                     </p>
                   </div>
                 )}

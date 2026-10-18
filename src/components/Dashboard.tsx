@@ -284,6 +284,9 @@ export default function Dashboard() {
             text: clean,
             type: newItem.type,
             pos: newItem.pos,
+            cefr: newItem.cefr,
+            ipa: newItem.ipa,
+            context: newItem.context,
             meanings: newItem.knownMeanings
           })
         });
