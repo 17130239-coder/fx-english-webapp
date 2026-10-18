@@ -50,35 +50,17 @@ export default function Navbar({
       </div>
 
       <div className="fx-nav-actions">
-        {/* Light / Dark Mode Toggle */}
+        {/* Light / Dark Mode Toggle (Icon only) */}
         <button
           type="button"
           onClick={onToggleTheme}
           className="fx-btn-tesla-ghost-sm"
-          title={theme === 'light' ? 'Chuyển sang giao diện Tối (Dark Mode)' : 'Chuyển sang giao diện Sáng (Light Mode)'}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+          title={theme === 'light' ? 'Chuyển sang giao diện Tối' : 'Chuyển sang giao diện Sáng'}
+          aria-label={theme === 'light' ? 'Chuyển sang giao diện Tối' : 'Chuyển sang giao diện Sáng'}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px 8px' }}
         >
-          {theme === 'light' ? <Moon size={13} /> : <Sun size={13} />}
-          <span>{theme === 'light' ? 'Tối' : 'Sáng'}</span>
+          {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
         </button>
-
-        {/* Minimal Neon DB Connection Dot */}
-        <span
-          className={`fx-neon-dot-wrap ${dbConnected ? '' : 'syncing'}`}
-          title={dbConnected ? 'Neon Serverless Postgres: Đã kết nối' : 'Đang kết nối cơ sở dữ liệu...'}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-        >
-          <span
-            className="fx-neon-dot"
-            style={{
-              backgroundColor: dbConnected ? '#10B981' : '#F59E0B',
-              boxShadow: dbConnected ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none'
-            }}
-          />
-          <span style={{ fontSize: '11px', color: 'var(--fx-text-secondary)', fontWeight: 500 }}>
-            {dbConnected ? 'Neon DB' : 'Đang kết nối...'}
-          </span>
-        </span>
       </div>
     </header>
   );
