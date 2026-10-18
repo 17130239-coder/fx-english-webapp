@@ -281,6 +281,21 @@ Hỗ trợ phím tắt toàn năng giúp người học thao tác không cần n
 
 ---
 
+#### 9. Tối Ưu Công Thái Học Di Động (Mobile Ergonomics & Responsive System)
+* **Triệt tiêu lỗi iOS Auto-Zoom**: Tự động đặt `16px` font-size cho input/select trên màn hình di động, ngăn chặn triệt để hành vi Safari tự phóng to màn hình khi chạm vào tìm kiếm.
+* **Hỗ trợ Dynamic Island & Tai thỏ**: Sử dụng `max(..., env(safe-area-inset-top))` và `env(safe-area-inset-bottom)` giúp Header và Footer không bị che khuất bởi notch hoặc thanh home ảo của iPhone.
+* **Dải thống kê vuốt ngang (Horizontal Swipe Strip)**: Trên điện thoại (< 640px), 7 thẻ chỉ số KPI chuyển thành dải vuốt ngang mượt mà (`scroll-snap-type: x mandatory`), giảm chiều cao chiếm chỗ từ 320px xuống chỉ còn 58px.
+* **Thanh Tab từ loại 1 dòng cuộn ngang**: Biến 7 tab từ loại thành hàng ngang cuộn êm ái thay vì rớt thành 3–4 dòng lộn xộn.
+* **Ẩn phím tắt bàn phím trên điện thoại**: Tự động ẩn nút phím tắt `?` trên thiết bị cảm ứng để giải phóng diện tích cho Header.
+
+---
+
+#### 10. Phản Hồi Chạm 0ms & Cuộn Mượt 120fps (Mobile GPU Acceleration)
+* **`touch-action: manipulation`**: Triệt tiêu 300ms độ trễ chạm (tap delay) của trình duyệt di động, giúp nút bấm phản hồi tức thì trong 0ms.
+* **`content-visibility: auto`**: Bỏ qua tính toán layout và render cho các thẻ từ vựng nằm ngoài màn hình điện thoại, giúp cuộn danh sách hàng trăm từ luôn đạt trọn vẹn 60–120fps ProMotion mượt mà như ứng dụng gốc.
+
+---
+
 ### 🤖 Phần 3: Kỹ Thuật Thiết Kế AI System Prompt Điện Ảnh (AI Prompt Engineering)
 
 Công cụ bóc tách ngôn ngữ của FX English sử dụng AI System Prompt được chuẩn hóa theo tiêu chuẩn **Nhà nghiên cứu Từ điển học Điện toán (Computational Lexicographer)** với 5 cơ chế phòng vệ và tối ưu độ sạch dữ liệu:

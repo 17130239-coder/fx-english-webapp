@@ -89,7 +89,7 @@ export default function Navbar({
           <button
             type="button"
             onClick={onOpenShortcuts}
-            className="fx-btn-tesla-ghost-sm"
+            className="fx-btn-tesla-ghost-sm fx-nav-keyboard-btn"
             title="Phím tắt bàn phím (?)"
             aria-label="Phím tắt bàn phím (?)"
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px 8px' }}

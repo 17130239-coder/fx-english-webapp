@@ -401,7 +401,7 @@ export default function VocabularyGrid({
               <option value="C2">C2 (Thành thạo)</option>
             </select>
 
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
               <Search size={13} style={{ position: 'absolute', left: '10px', color: 'var(--fx-text-muted)' }} />
               <input
                 ref={searchInputRef}
@@ -410,8 +410,8 @@ export default function VocabularyGrid({
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Tìm kiếm... (/)"
                 title="Tìm kiếm từ hoặc nghĩa (phím tắt /)"
-                className="fx-input"
-                style={{ paddingLeft: '30px', width: '200px', height: '34px', fontSize: '12.5px' }}
+                className="fx-input fx-search-field"
+                style={{ paddingLeft: '30px' }}
               />
             </div>
           </div>
