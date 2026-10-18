@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './Navbar';
-import UnifiedInput from './UnifiedInput';
 import ScannedHistory from './ScannedHistory';
 import VocabularyGrid from './VocabularyGrid';
 import MasterListView from './MasterListView';
@@ -213,36 +212,6 @@ export default function Dashboard() {
   };
 
   // Handle Offline Subtitle Analysis from UnifiedInput
-  const handleAnalysisComplete = async (result: any, cues: any[], title: string) => {
-    const vocab = extractVocabFromAnalysis(result);
-    setCurrentVocab(vocab);
-    setCurrentMovieTitle(title);
-
-    // Save to Neon DB
-    try {
-      const res = await fetch('/api/movies', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          platform: 'file',
-          wordCount: result?.totals?.uniqueWords || vocab.length,
-          nounCount: result?.categories?.noun?.count || 0,
-          verbCount: result?.categories?.verb?.count || 0,
-          adjCount: result?.categories?.adjective?.count || 0,
-          advCount: result?.categories?.adverb?.count || 0,
-          cues,
-          analysis: result
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        fetchMovies();
-      }
-    } catch (e) {
-      console.warn('Could not sync to /api/movies:', e);
-    }
-  };
 
   // Toggle Mastered Word (Sync with Neon)
   const handleToggleMaster = async (item: VocabItem) => {
@@ -632,14 +601,8 @@ export default function Dashboard() {
               onClearAll={handleClearAllMovies}
             />
 
-            {/* Unified Input (Subtitle Dropzone & Offline NLP Analyzer) */}
-            <UnifiedInput
-              onAnalysisComplete={handleAnalysisComplete}
-              onToast={showToast}
-            />
-
             {/* Vocabulary Grid */}
-            {currentVocab.length > 0 && (
+            {currentVocab.length > 0 ? (
               <VocabularyGrid
                 movieTitle={currentMovieTitle}
                 items={currentVocab}
@@ -648,7 +611,19 @@ export default function Dashboard() {
                 onToggleMaster={handleToggleMaster}
                 onToggleStar={handleToggleStar}
               />
-            )}
+            ) : movies.length > 0 ? (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: 'var(--fx-text-secondary)',
+                fontSize: '13px',
+                border: '1px dashed var(--fx-border-subtle)',
+                borderRadius: '8px',
+                background: 'var(--fx-bg-surface)'
+              }}>
+                Chọn một phim từ danh sách bên trên để xem toàn bộ từ vựng đã phân tích.
+              </div>
+            ) : null}
           </>
         ) : (
           /* Master Known List Management View */
