@@ -281,6 +281,36 @@ Hỗ trợ phím tắt toàn năng giúp người học thao tác không cần n
 
 ---
 
+### 🤖 Phần 3: Kỹ Thuật Thiết Kế AI System Prompt Điện Ảnh (AI Prompt Engineering)
+
+Công cụ bóc tách ngôn ngữ của FX English sử dụng AI System Prompt được chuẩn hóa theo tiêu chuẩn **Nhà nghiên cứu Từ điển học Điện toán (Computational Lexicographer)** với 5 cơ chế phòng vệ và tối ưu độ sạch dữ liệu:
+
+#### 1. Cơ Chế Chống Trùng Lặp Cụm Từ (Collocation Pre-emption)
+* Khi bóc tách một cụm từ cố định vào mục `phrases` (ví dụ: `take advantage of`, `figure out`, `call it a day`), AI bị cấm trích xuất các từ đơn lẻ tạo nên cụm từ đó (`advantage`, `figure`, `day`) vào danh sách từ đơn `vocabulary`.
+* Giữ cho danh sách học tập luôn cô đọng, người học không phải học lại các từ riêng lẻ vô nghĩa khi chúng đã nằm trong thành ngữ.
+
+#### 2. Bộ Lọc Tên Riêng, Nhân Vật & Thán Từ Phim (Entity & Noise Suppression)
+* Loại bỏ triệt để tên nhân vật phim (*Shrek, Fiona, Farquaad, Stark, Gotham*), địa danh hư cấu, tên thương hiệu hoặc các từ vô nghĩa mang tính âm thanh.
+* Bỏ qua các thán từ đệm hội thoại thông tục (*whoa, nah, uh-huh, gosh, gee, ooh, huh, dammit*) để tập trung 100% vào từ vựng tiếng Anh thực tế có giá trị sử dụng lâu dài.
+
+#### 3. Chuẩn Hóa Khẩu Ngữ & Rút Gọn Âm Điện Ảnh (Spoken Contractions Handling)
+* Tự động nhận diện các biến thể rút gọn trong lời thoại bản xứ (*gonna, wanna, gotta, dunno, kinda, sorta, lemme, outta, ain't*).
+* Ánh xạ chính xác về dạng từ gốc từ điển (Lemma): `gonna` $\rightarrow$ `going to`, `wanna` $\rightarrow$ `want to`, `kinda` $\rightarrow$ `kind of`, giữ nguyên `originalForm` để phục vụ bôi đậm ngữ cảnh phim.
+
+#### 4. Bỏ Qua Từ Vựng Sơ Đẳng Hiển Nhiên (A1 Trivial Word Suppression)
+* Tự động loại trừ các từ siêu cơ bản hiển nhiên (*eat, sleep, big, small, go, see, good, bad, car, dog, water, house*) trừ khi chúng mang nghĩa ẩn dụ hoặc nằm trong cấu trúc câu đặc biệt.
+* Tiết kiệm 40% token và ngăn chặn việc danh sách từ vựng bị ngập rác bởi các từ cơ bản của trẻ em.
+
+#### 5. Phân Loại Sắc Thái & Văn Phong Giao Tiếp (Register & Tone Tagging)
+* Gán nhãn sắc thái chuẩn cho từng từ và cụm từ:
+  * `"formal"`: Trang trọng, học thuật, tài liệu chuyên môn (*furthermore, scrutiny*).
+  * `"neutral"`: Trung tính, dùng trong mọi hoàn cảnh thông thường (*decision, reliable*).
+  * `"casual"`: Khẩu ngữ giao tiếp hàng ngày (*kinda, hang out, chill*).
+  * `"slang"`: Tiếng lóng giới trẻ (*ghost someone, wrap up*).
+  * `"taboo"`: Từ ngữ thô tục, cấm kỵ cần tránh dùng nơi công sở.
+
+---
+
 ## 🛠️ Hướng Dẫn Cài Đặt & Triển Khai Lên Vercel
 
 ### Cách 1: Triển khai trực tiếp lên Vercel qua GitHub (Khuyên dùng)
