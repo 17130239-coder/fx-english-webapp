@@ -25,6 +25,17 @@ export default function VocabularyGrid({
   const [activeTab, setActiveTab] = useState<'all' | 'noun' | 'verb' | 'adjective' | 'adverb' | 'communicative'>('all');
   const [cefrFilter, setCefrFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [hideMastered, setHideMastered] = useState<boolean>(false);
+
+  // Count how many items in this movie are already in master list
+  const masteredCountInMovie = useMemo(() => {
+    let count = 0;
+    items.forEach((item) => {
+      const k = (item.word || item.sentence || '').trim().toLowerCase();
+      if (masteredWords.has(k)) count++;
+    });
+    return count;
+  }, [items, masteredWords]);
 
   // Stats
   const stats = useMemo(() => {
@@ -65,6 +76,13 @@ export default function VocabularyGrid({
   // Filtered Items
   const filtered = useMemo(() => {
     return items.filter((item) => {
+      const k = (item.word || item.sentence || '').trim().toLowerCase();
+
+      // Hide Mastered Filter (Deduplication against Master List)
+      if (hideMastered && masteredWords.has(k)) {
+        return false;
+      }
+
       // POS Tab
       if (activeTab === 'communicative') {
         if (!item.sentence && !item.isCommunicative) return false;
@@ -80,7 +98,7 @@ export default function VocabularyGrid({
       // Search Query
       if (search.trim()) {
         const q = search.trim().toLowerCase();
-        const wordMatch = (item.word || item.sentence || '').toLowerCase().includes(q);
+        const wordMatch = k.includes(q);
         const transMatch = (item.vietnamese || item.meaningVi || '').toLowerCase().includes(q);
         const phraseMatch = (item.highlightPhrase || '').toLowerCase().includes(q);
         const noteMatch = (item.usageNote || '').toLowerCase().includes(q);
@@ -90,7 +108,7 @@ export default function VocabularyGrid({
 
       return true;
     });
-  }, [items, activeTab, cefrFilter, search]);
+  }, [items, activeTab, cefrFilter, search, hideMastered, masteredWords]);
 
   if (items.length === 0) return null;
 
@@ -107,7 +125,9 @@ export default function VocabularyGrid({
       <div className="fx-section-header" style={{ marginBottom: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
           <h2>Từ vựng: <span style={{ color: 'var(--fx-text-primary)', fontWeight: 600 }}>{movieTitle}</span></h2>
-          <span className="fx-nav-pill-count">{filtered.length} / {items.length} mục</span>
+          <span className="fx-nav-pill-count">
+            {filtered.length} / {items.length} mục{hideMastered ? ' (đã ẩn từ thuộc)' : ''}
+          </span>
         </div>
       </div>
 
@@ -183,8 +203,34 @@ export default function VocabularyGrid({
             ))}
           </div>
 
-          {/* Search & CEFR Dropdown */}
+          {/* Search, CEFR Dropdown & Hide Mastered Toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Toggle Hide Mastered (Deduplication against Master List) */}
+            <button
+              type="button"
+              onClick={() => setHideMastered(!hideMastered)}
+              className={`fx-btn-tesla-ghost-sm ${hideMastered ? 'active' : ''}`}
+              title={hideMastered ? 'Đang ẩn từ đã thuộc trong Master List (bấm để hiển thị tất cả)' : 'Bấm để ẩn các từ đã thuộc trong Master List'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '34px',
+                padding: '0 12px',
+                fontSize: '12px',
+                borderRadius: '6px',
+                border: '1px solid',
+                borderColor: hideMastered ? 'rgba(16, 185, 129, 0.4)' : 'var(--fx-border-subtle)',
+                backgroundColor: hideMastered ? 'rgba(16, 185, 129, 0.12)' : 'var(--fx-bg-surface)',
+                color: hideMastered ? '#10B981' : 'var(--fx-text-secondary)',
+                cursor: 'pointer',
+                transition: 'var(--fx-transition-fast)'
+              }}
+            >
+              <Check size={13} style={{ strokeWidth: hideMastered ? 2.5 : 1.8 }} />
+              <span>Ẩn từ đã thuộc{masteredCountInMovie > 0 ? ` (${masteredCountInMovie})` : ''}</span>
+            </button>
+
             <select
               value={cefrFilter}
               onChange={(e) => setCefrFilter(e.target.value)}
