@@ -79,26 +79,36 @@ export function extractVocabFromAnalysis(analysis: any): VocabItem[] {
     }
   });
 
-  // Communicative Sentences
-  if (Array.isArray(analysis.sentences)) {
-    analysis.sentences.forEach((s: any) => {
-      list.push({
-        word: s.cleanSentence || s.sentence || '',
-        sentence: s.cleanSentence || s.sentence || '',
-        cleanSentence: s.cleanSentence || s.sentence || '',
-        pos: 'communicative',
-        cefr: 'B1',
-        ipa: '',
-        vietnamese: s.vietnamese || '',
-        meaningVi: s.vietnamese || '',
-        frequency: 1,
-        contexts: [{ text: s.cleanSentence || s.sentence || '' }],
-        highlightPhrase: s.highlightPhrase,
-        usageNote: s.usageNote,
-        tag: s.tag || 'Giao tiếp'
-      });
+  // Communicative Sentences (Phrases, Collocations, Idioms, Slang)
+  const rawSentences: any[] =
+    (Array.isArray(analysis.communicativeSentences) && analysis.communicativeSentences.length > 0)
+      ? analysis.communicativeSentences
+      : (Array.isArray(analysis.categories?.sentences?.words) && analysis.categories.sentences.words.length > 0)
+      ? analysis.categories.sentences.words
+      : (Array.isArray(analysis.posGroups?.sentences) && analysis.posGroups.sentences.length > 0)
+      ? analysis.posGroups.sentences
+      : (Array.isArray(analysis.sentences) ? analysis.sentences : []);
+
+  rawSentences.forEach((s: any) => {
+    const text = s.cleanSentence || s.sentence || s.text || '';
+    if (!text) return;
+    list.push({
+      word: text,
+      sentence: text,
+      cleanSentence: text,
+      pos: 'communicative',
+      isCommunicative: true,
+      cefr: s.cefr || 'B1',
+      ipa: s.ipa || '',
+      vietnamese: s.vietnamese || s.meaningVi || '',
+      meaningVi: s.vietnamese || s.meaningVi || '',
+      frequency: s.frequency || 1,
+      contexts: [{ text }],
+      highlightPhrase: s.highlightPhrase || '',
+      usageNote: s.usageNote || '',
+      tag: s.tag || 'Giao tiếp'
     });
-  }
+  });
 
   return list;
 }

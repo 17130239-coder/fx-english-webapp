@@ -46,7 +46,20 @@ export default function VocabularyGrid({
       else if (c === 'C1' || c === 'C2') cefrC1C2++;
     });
 
-    return { total: items.length, nouns, verbs, adjs, advs, comms, cefrA1, cefrA2, cefrB1, cefrB2, cefrC1C2 };
+    const vocabWordsCount = nouns + verbs + adjs + advs;
+    return {
+      total: vocabWordsCount || items.length,
+      nouns,
+      verbs,
+      adjs,
+      advs,
+      comms,
+      cefrA1,
+      cefrA2,
+      cefrB1,
+      cefrB2,
+      cefrC1C2
+    };
   }, [items]);
 
   // Filtered Items
@@ -69,7 +82,10 @@ export default function VocabularyGrid({
         const q = search.trim().toLowerCase();
         const wordMatch = (item.word || item.sentence || '').toLowerCase().includes(q);
         const transMatch = (item.vietnamese || item.meaningVi || '').toLowerCase().includes(q);
-        if (!wordMatch && !transMatch) return false;
+        const phraseMatch = (item.highlightPhrase || '').toLowerCase().includes(q);
+        const noteMatch = (item.usageNote || '').toLowerCase().includes(q);
+        const tagMatch = (item.tag || '').toLowerCase().includes(q);
+        if (!wordMatch && !transMatch && !phraseMatch && !noteMatch && !tagMatch) return false;
       }
 
       return true;
@@ -146,12 +162,12 @@ export default function VocabularyGrid({
           {/* POS Tabs */}
           <div className="fx-tabs-group" style={{ borderBottom: 'none', paddingBottom: 0 }}>
             {[
-              { id: 'all', label: 'Tất cả' },
-              { id: 'noun', label: 'Danh từ' },
-              { id: 'verb', label: 'Động từ' },
-              { id: 'adjective', label: 'Tính từ' },
-              { id: 'adverb', label: 'Trạng từ' },
-              { id: 'communicative', label: 'Giao tiếp' }
+              { id: 'all', label: 'Tất cả', count: items.length },
+              { id: 'noun', label: 'Danh từ', count: stats.nouns },
+              { id: 'verb', label: 'Động từ', count: stats.verbs },
+              { id: 'adjective', label: 'Tính từ', count: stats.adjs },
+              { id: 'adverb', label: 'Trạng từ', count: stats.advs },
+              { id: 'communicative', label: 'Giao tiếp', count: stats.comms }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -159,7 +175,10 @@ export default function VocabularyGrid({
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`fx-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
               >
-                {tab.label}
+                <span>{tab.label}</span>
+                <span className="fx-nav-pill-count" style={{ marginLeft: '4px' }}>
+                  {tab.count}
+                </span>
               </button>
             ))}
           </div>
