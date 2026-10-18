@@ -14,6 +14,67 @@ interface VocabularyGridProps {
   onToggleStar: (word: string) => void;
 }
 
+function cleanAndNormalizeSentence(text: string): string {
+  if (!text) return '';
+  let str = String(text).trim();
+  str = str.replace(/[♪♫#]/g, '').trim();
+  str = str.replace(/\[[^\]]+\]/g, ' ').replace(/\([^)]+\)/g, ' ').trim();
+  str = str.replace(/^["'“”]+|["'“”]+$/g, '').trim();
+  str = str.replace(/[,;]+$/, '').trim();
+  str = str.replace(/\s+/g, ' ');
+
+  const letters = str.replace(/[^a-zA-Z]/g, '');
+  const upper = str.replace(/[^A-Z]/g, '');
+  if (letters.length >= 3 && (upper.length / letters.length) > 0.65) {
+    str = str.toLowerCase();
+    str = str.replace(/(^\s*|[.!?]\s+)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase());
+    str = str.replace(/\b(i)\b/g, 'I');
+    str = str.replace(/\bi'([a-z]+)\b/g, (_, p1) => "I'" + p1);
+  }
+  return str;
+}
+
+function scoreContextSentence(text: string): number {
+  if (!text) return -100;
+  const words = text.trim().split(/\s+/);
+  const wordCount = words.length;
+  let score = 0;
+  if (wordCount >= 6 && wordCount <= 22) score += 60;
+  else if (wordCount >= 4 && wordCount <= 28) score += 40;
+  else if (wordCount < 3) score -= 60;
+  else if (wordCount < 4) score -= 30;
+  if (/[.!?]$/.test(text.trim())) score += 20;
+  else if (/[,;:\-]$/.test(text.trim())) score -= 20;
+  if (/\b(I|you|he|she|it|we|they|the|this|that|is|are|was|were|have|do|can|will|would)\b/i.test(text)) {
+    score += 15;
+  }
+  return score;
+}
+
+function renderHighlightedContext(sentence: string, word: string) {
+  if (!sentence) return null;
+  const normalized = cleanAndNormalizeSentence(sentence);
+  if (!word) return normalized;
+
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`\\b(${escaped})\\b`, 'gi');
+  const parts = normalized.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <b key={i} className="fx-quote-highlight">
+            {part}
+          </b>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
 export default function VocabularyGrid({
   movieTitle,
   items,
@@ -398,7 +459,7 @@ export default function VocabularyGrid({
                   </p>
                   {example && (
                     <p className="fx-sent-quote" style={{ fontStyle: 'italic', color: 'var(--fx-text-secondary)', fontSize: '12px' }}>
-                      "{example}"
+                      "{cleanAndNormalizeSentence(example)}"
                     </p>
                   )}
                 </div>
@@ -470,7 +531,7 @@ export default function VocabularyGrid({
                   </p>
                   {quote && (
                     <p className="fx-sent-quote" style={{ fontStyle: 'italic', color: 'var(--fx-text-secondary)', fontSize: '12px' }}>
-                      "{quote}"
+                      "{renderHighlightedContext(quote, item.highlightPhrase || item.word)}"
                     </p>
                   )}
                 </div>
@@ -484,8 +545,12 @@ export default function VocabularyGrid({
             );
           }
 
-          // Standard Vocabulary Word Card
-          const contextSentence = item.contexts?.[0]?.text || '';
+          // Standard Vocabulary Word Card: pick richest context
+          const contextCandidates = Array.isArray(item.contexts) ? [...item.contexts] : [];
+          if (contextCandidates.length > 1) {
+            contextCandidates.sort((a, b) => scoreContextSentence(b.text || '') - scoreContextSentence(a.text || ''));
+          }
+          const contextSentence = contextCandidates[0]?.text || '';
 
           return (
             <div key={idx} className="fx-word-card">
@@ -539,10 +604,10 @@ export default function VocabularyGrid({
                 <span className="fx-card-trans">{item.vietnamese || item.meaningVi}</span>
               </div>
 
-              {/* Line 3: Direct Quote from Subtitle (No 26x, No timestamps) */}
+              {/* Line 3: Direct Quote from Subtitle */}
               {contextSentence && (
                 <div className="fx-card-line-3">
-                  <p className="fx-card-quote">"{contextSentence}"</p>
+                  <p className="fx-card-quote">"{renderHighlightedContext(contextSentence, item.word)}"</p>
                 </div>
               )}
             </div>
