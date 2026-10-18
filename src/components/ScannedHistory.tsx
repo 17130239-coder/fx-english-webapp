@@ -14,6 +14,18 @@ interface ScannedHistoryProps {
   loading?: boolean;
 }
 
+function formatDisplayUrl(url?: string): string {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    const domain = parsed.hostname.replace(/^www\./, '');
+    const pathname = parsed.pathname.length > 25 ? parsed.pathname.slice(0, 25) + '...' : parsed.pathname;
+    return `${domain}${pathname === '/' ? '' : pathname}`;
+  } catch (e) {
+    return url.length > 30 ? url.slice(0, 30) + '...' : url;
+  }
+}
+
 export default function ScannedHistory({
   movies,
   selectedMovieId,
@@ -164,36 +176,37 @@ export default function ScannedHistory({
                     onClick={(e) => e.stopPropagation()}
                     className="fx-banner-link"
                     style={{
-                      display: 'inline-flex',
+                      display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       color: 'var(--fx-text-muted)',
-                      marginTop: '2px',
-                      maxWidth: '100%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
+                      marginTop: '4px',
+                      width: '100%',
+                      minWidth: 0,
+                      overflow: 'hidden'
                     }}
                   >
-                    <ExternalLink size={10} style={{ flexShrink: 0 }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{movie.url}</span>
+                    <ExternalLink size={11} style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>
+                      {formatDisplayUrl(movie.url)}
+                    </span>
                   </a>
                 )}
               </div>
 
               {/* Stats Block */}
               <div className="fx-history-stats-block">
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
                   <span className="fx-hist-total-num">
                     {movie.wordCount?.toLocaleString() || 0}
-                    <span style={{ fontSize: '11px', color: 'var(--fx-text-secondary)', fontWeight: 400, marginLeft: '4px' }}>từ</span>
+                    <span style={{ fontSize: '13px', color: 'var(--fx-text-secondary)', fontWeight: 500, marginLeft: '4px' }}>từ vựng</span>
                   </span>
 
                   <div className="fx-hist-specs">
-                    {movie.nounCount > 0 && <span>N:{movie.nounCount} </span>}
-                    {movie.verbCount > 0 && <span>· V:{movie.verbCount} </span>}
-                    {movie.adjCount > 0 && <span>· Adj:{movie.adjCount}</span>}
+                    {movie.nounCount > 0 && <span>Danh từ: {movie.nounCount} </span>}
+                    {movie.verbCount > 0 && <span>· Động từ: {movie.verbCount} </span>}
+                    {movie.adjCount > 0 && <span>· Tính từ: {movie.adjCount}</span>}
                   </div>
                 </div>
               </div>

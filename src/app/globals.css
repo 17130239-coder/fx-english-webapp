@@ -79,7 +79,11 @@ html.light,
   padding: 0;
 }
 
+html,
 body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
   background-color: var(--fx-bg-canvas);
   color: var(--fx-text-primary);
   font-family: var(--fx-font-main);
@@ -119,6 +123,9 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
 }
 
 .fx-container {
@@ -126,6 +133,8 @@ textarea {
   width: 100%;
   margin: 0 auto;
   padding: 24px 28px max(60px, env(safe-area-inset-bottom, 60px));
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* --------------------------------------------------------------------------
@@ -513,26 +522,31 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .fx-section-header h2 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--fx-text-primary);
   letter-spacing: -0.01em;
 }
 
 .fx-history-empty {
   color: var(--fx-text-secondary);
-  font-size: 13px;
+  font-size: 14px;
   padding: 16px 0;
 }
 
 .fx-history-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Tesla History Card (Fully Clickable) */
@@ -540,13 +554,20 @@ textarea {
   background: var(--fx-bg-surface);
   border: 1px solid var(--fx-border-subtle);
   border-radius: 8px;
-  padding: 14px 16px;
+  padding: 16px 18px;
   cursor: pointer;
   transition: var(--fx-transition-fast);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   text-align: left;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .fx-history-card:hover {
@@ -637,12 +658,14 @@ textarea {
 }
 
 .fx-history-title-row-card {
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
 }
 
 .fx-history-title {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--fx-text-primary);
   line-height: 1.35;
   overflow: hidden;
@@ -652,22 +675,22 @@ textarea {
 
 .fx-history-stats-block {
   margin-top: 4px;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--fx-border-subtle);
 }
 
 .fx-hist-total-num {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--fx-text-primary);
   letter-spacing: -0.01em;
 }
 
 .fx-hist-specs {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--fx-text-secondary);
   font-weight: 500;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 /* --------------------------------------------------------------------------
@@ -1956,12 +1979,16 @@ textarea {
   }
 
   .fx-cards-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
     gap: 10px;
   }
 
   .fx-history-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
     gap: 12px;
   }
 
