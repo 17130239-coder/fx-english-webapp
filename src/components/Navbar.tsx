@@ -29,22 +29,7 @@ export default function Navbar({
   return (
     <header className="fx-navbar">
       <div className="fx-nav-brand-group">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <h1 className="fx-nav-title">FX English</h1>
-          <span style={{
-            fontSize: '10px',
-            fontWeight: 600,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            background: 'var(--fx-bg-surface-hover)',
-            color: 'var(--fx-text-secondary)',
-            border: '1px solid var(--fx-border-subtle)'
-          }}>
-            Web Dashboard
-          </span>
-        </div>
+        <h1 className="fx-nav-title">FX English</h1>
 
         <nav className="fx-nav-switcher">
           <button

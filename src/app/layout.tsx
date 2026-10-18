@@ -9,8 +9,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'FX English — Web Dashboard',
-  description: 'FX English Subtitle & Vocabulary Studio Web Dashboard. Synchronized with Neon Serverless Postgres.',
+  title: 'FX English',
+  description: 'FX English Subtitle & Vocabulary Studio. Synchronized with Neon Serverless Postgres.',
 };
 
 export default function RootLayout({
