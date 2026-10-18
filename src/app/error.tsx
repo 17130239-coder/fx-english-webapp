@@ -9,27 +9,32 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const isChunkError =
+    error?.name === 'ChunkLoadError' ||
+    /loading chunk|failed to fetch dynamically imported module|failed to fetch|load failed|error loading dynamically/i.test(
+      error?.message || ''
+    );
+
   useEffect(() => {
     console.error('Unhandled application error:', error);
-    // Auto-reload once if this is a stale chunk loading error from a new deployment
-    if (
-      typeof window !== 'undefined' &&
-      (error?.message?.includes('Loading chunk') ||
-       error?.message?.includes('Failed to fetch') ||
-       error?.name === 'ChunkLoadError')
-    ) {
-      const reloaded = sessionStorage.getItem('fx_chunk_reload');
-      if (!reloaded) {
-        sessionStorage.setItem('fx_chunk_reload', 'true');
+
+    // Auto-reload seamlessly if this is a stale chunk error caused by a new Vercel deployment
+    if (typeof window !== 'undefined' && isChunkError) {
+      const lastReload = Number(sessionStorage.getItem('fx_last_chunk_reload') || 0);
+      const now = Date.now();
+      // If we haven't auto-reloaded in the last 15 seconds, auto reload now
+      if (now - lastReload > 15000) {
+        sessionStorage.setItem('fx_last_chunk_reload', String(now));
         window.location.reload();
       }
     }
-  }, [error]);
+  }, [error, isChunkError]);
 
   const handleReload = () => {
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('fx_chunk_reload');
-      window.location.reload();
+      sessionStorage.removeItem('fx_last_chunk_reload');
+      // Force hard refresh by navigating with a cache-buster
+      window.location.href = window.location.pathname + '?_t=' + Date.now();
     } else {
       reset();
     }
@@ -93,7 +98,7 @@ export default function GlobalError({
               color: 'var(--fx-text-primary, #F4F4F6)'
             }}
           >
-            Đã có gián đoạn kết nối
+            {isChunkError ? 'Bản cập nhật mới đã sẵn sàng' : 'Đã có gián đoạn kết nối'}
           </h2>
           <p
             style={{
@@ -103,7 +108,9 @@ export default function GlobalError({
               margin: 0
             }}
           >
-            Hệ thống cần đồng bộ lại mã nguồn mới nhất từ máy chủ. Vui lòng tải lại trang.
+            {isChunkError
+              ? 'Máy chủ Vercel vừa cập nhật phiên bản mới. Vui lòng tải lại trang để hoàn tất đồng bộ.'
+              : (error?.message || 'Hệ thống cần đồng bộ lại mã nguồn mới nhất từ máy chủ. Vui lòng tải lại trang.')}
           </p>
         </div>
 

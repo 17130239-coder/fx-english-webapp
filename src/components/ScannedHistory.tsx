@@ -32,9 +32,10 @@ export default function ScannedHistory({
   // Deduplicate movies by URL (or ID if no URL)
   const deduplicatedMovies = React.useMemo(() => {
     const map = new Map<string, ScannedMovie>();
-    movies.forEach((m) => {
+    (movies || []).forEach((m) => {
+      if (!m) return;
       const key = (m.url && m.url.trim()) ? m.url.trim() : m.id;
-      if (!map.has(key)) {
+      if (key && !map.has(key)) {
         map.set(key, m);
       }
     });

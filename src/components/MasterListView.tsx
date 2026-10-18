@@ -106,7 +106,8 @@ export default function MasterListView({
   // CEFR Distribution Calculation
   const cefrStats = useMemo(() => {
     let a1 = 0, a2 = 0, b1 = 0, b2 = 0, c1c2 = 0;
-    items.forEach((item) => {
+    (items || []).forEach((item) => {
+      if (!item) return;
       const c = (item.cefr || '').toUpperCase();
       if (c === 'A1') a1++;
       else if (c === 'A2') a2++;
@@ -134,7 +135,8 @@ export default function MasterListView({
   // Tab Counts
   const tabCounts = useMemo(() => {
     let nouns = 0, verbs = 0, adjs = 0, advs = 0, sentences = 0, polysemy = 0;
-    items.forEach((item) => {
+    (items || []).forEach((item) => {
+      if (!item) return;
       const pos = (item.pos || '').toUpperCase();
       if (item.type === 'sentence' || pos === 'IDIOM') sentences++;
       else if (pos === 'N' || pos === 'NOUN') nouns++;
@@ -151,7 +153,8 @@ export default function MasterListView({
 
   // Filtered Items
   const filtered = useMemo(() => {
-    return items.filter((item) => {
+    return (items || []).filter((item) => {
+      if (!item) return false;
       const pos = (item.pos || '').toUpperCase();
       const isSentence = item.type === 'sentence' || pos === 'IDIOM';
 
