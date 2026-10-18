@@ -4,33 +4,61 @@ import { sql, ensureSchema } from '@/lib/neon';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(req: Request) {
   if (!sql) {
     return NextResponse.json({ success: false, error: 'DATABASE_URL is not configured' }, { status: 500 });
   }
 
   try {
     await ensureSchema();
-    const rows = await sql`
-      SELECT 
-        id, 
-        title, 
-        platform, 
-        url, 
-        timestamp, 
-        date_formatted as "dateFormatted", 
-        word_count as "wordCount", 
-        noun_count as "nounCount", 
-        verb_count as "verbCount", 
-        adj_count as "adjCount", 
-        adv_count as "advCount",
-        phrase_count as "phraseCount",
-        pattern_count as "patternCount",
-        created_at as "createdAt"
-      FROM fx_scanned_movies
-      ORDER BY timestamp DESC
-      LIMIT 100;
-    `;
+    const { searchParams } = new URL(req.url);
+    const isFull = searchParams.get('full') === 'true' || searchParams.get('export') === 'true';
+
+    let rows;
+    if (isFull) {
+      rows = await sql`
+        SELECT 
+          id, 
+          title, 
+          platform, 
+          url, 
+          timestamp, 
+          date_formatted as "dateFormatted", 
+          word_count as "wordCount", 
+          noun_count as "nounCount", 
+          verb_count as "verbCount", 
+          adj_count as "adjCount", 
+          adv_count as "advCount",
+          phrase_count as "phraseCount",
+          pattern_count as "patternCount",
+          cues,
+          analysis,
+          created_at as "createdAt"
+        FROM fx_scanned_movies
+        ORDER BY timestamp DESC;
+      `;
+    } else {
+      rows = await sql`
+        SELECT 
+          id, 
+          title, 
+          platform, 
+          url, 
+          timestamp, 
+          date_formatted as "dateFormatted", 
+          word_count as "wordCount", 
+          noun_count as "nounCount", 
+          verb_count as "verbCount", 
+          adj_count as "adjCount", 
+          adv_count as "advCount",
+          phrase_count as "phraseCount",
+          pattern_count as "patternCount",
+          created_at as "createdAt"
+        FROM fx_scanned_movies
+        ORDER BY timestamp DESC
+        LIMIT 100;
+      `;
+    }
 
     return NextResponse.json({ success: true, movies: rows });
   } catch (error: any) {

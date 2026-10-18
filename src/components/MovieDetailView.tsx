@@ -12,6 +12,7 @@ import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
 import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
+import { triggerDownload } from '@/lib/export';
 import { MovieDetailSkeleton } from './Skeletons';
 
 interface MovieDetailViewProps {
@@ -308,6 +309,50 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
     });
   };
 
+  // Export this specific movie episode vocabulary as JSON
+  const handleExportMovieDetailJson = () => {
+    if (!movie) {
+      showToast('Dữ liệu phim chưa sẵn sàng để xuất.', 'warning');
+      return;
+    }
+
+    try {
+      const safeTitle = (movie.title || 'movie').replace(/[^\w\s\-_]/g, '_').trim();
+      const exportPayload = {
+        exportType: 'single_movie_vocabulary',
+        exportedAt: new Date().toISOString(),
+        movie: {
+          id: movie.id,
+          title: movie.title,
+          platform: movie.platform,
+          url: movie.url,
+          timestamp: movie.timestamp,
+          dateFormatted: movie.dateFormatted,
+          wordCount: movie.wordCount,
+          nounCount: movie.nounCount,
+          verbCount: movie.verbCount,
+          adjCount: movie.adjCount,
+          advCount: movie.advCount,
+          phraseCount: movie.phraseCount,
+          patternCount: movie.patternCount
+        },
+        vocabularyCount: vocab.length,
+        vocabulary: vocab,
+        cues: movie.cues || []
+      };
+
+      triggerDownload(
+        JSON.stringify(exportPayload, null, 2),
+        `${safeTitle}_vocab.json`,
+        'application/json;charset=utf-8'
+      );
+      showToast(`Đã xuất dữ liệu phim "${movie.title}" thành file JSON thành công`, 'success');
+    } catch (err: any) {
+      console.error('Error exporting movie JSON:', err);
+      showToast(`Lỗi xuất JSON: ${err.message || 'Lỗi xử lý'}`, 'error');
+    }
+  };
+
   const isNetflix = movie?.platform === 'netflix' || Boolean(movie?.url && movie.url.includes('netflix.com'));
   const isYouTube = !isNetflix && (movie?.platform === 'youtube' || Boolean(movie?.url && (movie.url.includes('youtube.com') || movie.url.includes('youtu.be'))));
   const platformLabel = isNetflix ? 'netflix' : isYouTube ? 'youtube' : (movie?.platform || 'file');
@@ -329,6 +374,8 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         onToggleTheme={handleToggleTheme}
         dbConnected={true}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        onExportJson={handleExportMovieDetailJson}
+        exportJsonTitle={`Xuất dữ liệu phim ${movie?.title || ''} (JSON)`}
       />
 
       {/* Main Content Area */}

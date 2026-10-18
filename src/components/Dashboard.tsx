@@ -15,6 +15,7 @@ import {
   exportMasterToCsv,
   triggerDownload
 } from '@/lib/export';
+import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -542,6 +543,96 @@ export default function Dashboard() {
     }
   };
 
+  // Export all vocabulary across all movies as JSON
+  const handleExportAllMoviesJson = async () => {
+    if (movies.length === 0) {
+      showToast('Chưa có phim nào để xuất dữ liệu.', 'warning');
+      return;
+    }
+
+    try {
+      showToast('Đang tổng hợp dữ liệu từ vựng tất cả các phim...', 'info');
+      const res = await fetch('/api/movies?full=true');
+      const data = await res.json();
+      const rawMovies: any[] = (data.success && Array.isArray(data.movies)) ? data.movies : [];
+
+      if (rawMovies.length === 0) {
+        showToast('Không tìm thấy dữ liệu phim để xuất.', 'warning');
+        return;
+      }
+
+      const allVocabMap = new Map<string, any>();
+      const processedMovies = rawMovies.map((m) => {
+        let analysis = m.analysis;
+        if (typeof analysis === 'string') {
+          try { analysis = JSON.parse(analysis); } catch (e) { analysis = {}; }
+        }
+        let cues = m.cues;
+        if (typeof cues === 'string') {
+          try { cues = JSON.parse(cues); } catch (e) { cues = []; }
+        }
+
+        const vocabList = extractVocabFromAnalysis(analysis);
+
+        // Aggregate unique vocabulary across all movies
+        vocabList.forEach((v) => {
+          const key = (v.word || v.sentence || '').toLowerCase().trim();
+          if (!key) return;
+          if (allVocabMap.has(key)) {
+            const existing = allVocabMap.get(key);
+            existing.totalFrequency = (existing.totalFrequency || existing.frequency || 1) + (v.frequency || 1);
+            if (m.title && !existing.foundInMovies.includes(m.title)) {
+              existing.foundInMovies.push(m.title);
+            }
+          } else {
+            allVocabMap.set(key, {
+              ...v,
+              totalFrequency: v.frequency || 1,
+              foundInMovies: m.title ? [m.title] : []
+            });
+          }
+        });
+
+        return {
+          id: m.id,
+          title: m.title,
+          platform: m.platform,
+          url: m.url,
+          timestamp: m.timestamp,
+          dateFormatted: m.dateFormatted,
+          wordCount: m.wordCount,
+          nounCount: m.nounCount,
+          verbCount: m.verbCount,
+          adjCount: m.adjCount,
+          advCount: m.advCount,
+          phraseCount: m.phraseCount,
+          patternCount: m.patternCount,
+          vocabulary: vocabList,
+          cues: cues || []
+        };
+      });
+
+      const exportPayload = {
+        exportType: 'all_movies_vocabulary',
+        exportedAt: new Date().toISOString(),
+        totalMovies: processedMovies.length,
+        totalUniqueVocabulary: allVocabMap.size,
+        movies: processedMovies,
+        allUniqueVocabulary: Array.from(allVocabMap.values())
+      };
+
+      triggerDownload(
+        JSON.stringify(exportPayload, null, 2),
+        `fx_english_all_movies_vocab_${Date.now()}.json`,
+        'application/json;charset=utf-8'
+      );
+      showToast(`Đã xuất thành công dữ liệu từ vựng của ${processedMovies.length} phim thành file JSON`, 'success');
+    } catch (err: any) {
+      console.error('Error exporting all movies JSON:', err);
+      showToast(`Lỗi xuất JSON: ${err.message || 'Lỗi xử lý'}`, 'error');
+    }
+  };
+
   // Open Flashcards
   const handleOpenFlashcards = () => {
     if (activeView === 'master') {
@@ -588,6 +679,8 @@ export default function Dashboard() {
         onToggleTheme={handleToggleTheme}
         dbConnected={dbConnected}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        onExportJson={handleExportAllMoviesJson}
+        exportJsonTitle="Xuất toàn bộ từ vựng của tất cả các phim (JSON)"
       />
 
       {/* Main Content Area */}

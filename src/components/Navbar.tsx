@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Sun, Moon, Keyboard } from 'lucide-react';
+import { Sun, Moon, Keyboard, Download } from 'lucide-react';
 
 interface NavbarProps {
   activeView: 'studio' | 'master';
@@ -14,6 +14,8 @@ interface NavbarProps {
   onExportAnki?: () => void;
   onExportCsv?: () => void;
   onOpenShortcuts?: () => void;
+  onExportJson?: () => void;
+  exportJsonTitle?: string;
 }
 
 export default function Navbar({
@@ -23,7 +25,9 @@ export default function Navbar({
   theme,
   onToggleTheme,
   dbConnected = false,
-  onOpenShortcuts
+  onOpenShortcuts,
+  onExportJson,
+  exportJsonTitle
 }: NavbarProps) {
   return (
     <header className="fx-navbar">
@@ -67,6 +71,21 @@ export default function Navbar({
       </div>
 
       <div className="fx-nav-actions">
+        {/* Export JSON Button */}
+        {onExportJson && (
+          <button
+            type="button"
+            onClick={onExportJson}
+            className="fx-btn-tesla-ghost-sm"
+            title={exportJsonTitle || "Xuất dữ liệu JSON"}
+            aria-label={exportJsonTitle || "Xuất dữ liệu JSON"}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', fontSize: '12px' }}
+          >
+            <Download size={13} />
+            <span>JSON</span>
+          </button>
+        )}
+
         {/* Keyboard Shortcuts Trigger */}
         {onOpenShortcuts && (
           <button
