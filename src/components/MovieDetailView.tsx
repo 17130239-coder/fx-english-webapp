@@ -277,6 +277,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         masterCount={masterItems.length}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        dbConnected={true}
       />
 
       {/* Main Content Area */}

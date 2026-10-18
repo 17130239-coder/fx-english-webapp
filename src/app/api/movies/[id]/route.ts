@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { sql, ensureSchema } from '@/lib/neon';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -56,7 +59,17 @@ export async function DELETE(
     const { id } = await params;
     const cleanId = decodeURIComponent(id || '').trim();
     await ensureSchema();
-    await sql`DELETE FROM fx_scanned_movies WHERE id = ${cleanId};`;
+
+    // Query URL first to eliminate duplicates of the same movie
+    const existing = await sql`SELECT url FROM fx_scanned_movies WHERE id = ${cleanId} LIMIT 1;`;
+    const movieUrl = existing[0]?.url ? String(existing[0].url).trim() : '';
+
+    if (movieUrl) {
+      await sql`DELETE FROM fx_scanned_movies WHERE id = ${cleanId} OR url = ${movieUrl};`;
+    } else {
+      await sql`DELETE FROM fx_scanned_movies WHERE id = ${cleanId};`;
+    }
+
     return NextResponse.json({ success: true, id: cleanId });
   } catch (error: any) {
     console.error('Error deleting movie:', error);

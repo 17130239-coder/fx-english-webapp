@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { sql, ensureSchema } from '@/lib/neon';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   if (!sql) {
     return NextResponse.json({ success: false, error: 'DATABASE_URL is not configured' }, { status: 500 });

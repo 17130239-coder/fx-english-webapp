@@ -96,11 +96,13 @@ export default function Dashboard() {
   // 1. Fetch Movies from Neon Serverless
   const fetchMovies = useCallback(async () => {
     try {
-      const res = await fetch('/api/movies');
+      const res = await fetch('/api/movies', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.movies)) {
         setMovies(data.movies);
         setDbConnected(true);
+      } else {
+        setDbConnected(false);
       }
     } catch (e) {
       console.warn('Could not connect to /api/movies:', e);
@@ -111,7 +113,7 @@ export default function Dashboard() {
   // 2. Fetch Master List from Neon Serverless
   const fetchMasterList = useCallback(async () => {
     try {
-      const res = await fetch('/api/master-list');
+      const res = await fetch('/api/master-list', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.items)) {
         setMasterItems(data.items);
@@ -203,16 +205,27 @@ export default function Dashboard() {
     });
   };
 
-  // Delete Movie (Immediate optimistic deletion + background cloud sync)
+  // Delete Movie (Immediate optimistic deletion + cloud sync)
   const handleDeleteMovie = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
 
+    // Find target movie and URL to clean up duplicate entries if any
+    const target = movies.find((m) => m.id === id);
+    const targetUrl = target?.url?.trim();
+
     // Optimistically update UI
-    setMovies((prev) => prev.filter((m) => m.id !== id));
+    setMovies((prev) => prev.filter((m) => {
+      if (m.id === id) return false;
+      if (targetUrl && m.url && m.url.trim() === targetUrl) return false;
+      return true;
+    }));
 
     try {
-      const res = await fetch(`/api/movies/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/movies/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       const data = await res.json();
       if (data.success) {
         showToast('Đã xóa phim thành công', 'info');
@@ -481,6 +494,7 @@ export default function Dashboard() {
         masterCount={masterItems.length}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        dbConnected={dbConnected}
       />
 
       {/* Main Content Area */}

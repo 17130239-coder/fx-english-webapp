@@ -20,7 +20,8 @@ export default function Navbar({
   onViewChange,
   masterCount,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  dbConnected = false
 }: NavbarProps) {
   return (
     <header className="fx-navbar">
@@ -60,6 +61,24 @@ export default function Navbar({
           {theme === 'light' ? <Moon size={13} /> : <Sun size={13} />}
           <span>{theme === 'light' ? 'Tối' : 'Sáng'}</span>
         </button>
+
+        {/* Minimal Neon DB Connection Dot */}
+        <span
+          className={`fx-neon-dot-wrap ${dbConnected ? '' : 'syncing'}`}
+          title={dbConnected ? 'Neon Serverless Postgres: Đã kết nối' : 'Đang kết nối cơ sở dữ liệu...'}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        >
+          <span
+            className="fx-neon-dot"
+            style={{
+              backgroundColor: dbConnected ? '#10B981' : '#F59E0B',
+              boxShadow: dbConnected ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none'
+            }}
+          />
+          <span style={{ fontSize: '11px', color: 'var(--fx-text-secondary)', fontWeight: 500 }}>
+            {dbConnected ? 'Neon DB' : 'Đang kết nối...'}
+          </span>
+        </span>
       </div>
     </header>
   );
