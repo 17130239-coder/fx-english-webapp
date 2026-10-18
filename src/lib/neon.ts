@@ -20,12 +20,17 @@ export async function ensureSchema() {
         verb_count INT DEFAULT 0,
         adj_count INT DEFAULT 0,
         adv_count INT DEFAULT 0,
+        phrase_count INT DEFAULT 0,
+        pattern_count INT DEFAULT 0,
         cues JSONB DEFAULT '[]'::jsonb,
         analysis JSONB DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
     `;
+
+    await sql`ALTER TABLE fx_scanned_movies ADD COLUMN IF NOT EXISTS phrase_count INT DEFAULT 0;`;
+    await sql`ALTER TABLE fx_scanned_movies ADD COLUMN IF NOT EXISTS pattern_count INT DEFAULT 0;`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS fx_master_known_list (

@@ -39,7 +39,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
         { keys: ['F'], label: 'Mở bộ thẻ ôn tập Flashcards 3D' },
         { keys: ['H'], label: 'Bật / Tắt ẩn từ vựng đã thuộc' },
         { keys: ['/', 'Ctrl+K'], label: 'Kích hoạt ô tìm kiếm từ vựng & nghĩa' },
-        { keys: ['1', '...', '6'], label: 'Lọc loại từ: Tất cả (1), Danh (2), Động (3), Tính (4), Trạng (5), Giao tiếp (6)' },
+        { keys: ['1', '...', '7'], label: 'Lọc loại từ: Tất cả (1), Danh (2), Động (3), Tính (4), Trạng (5), Cụm từ (6), Cấu trúc câu (7)' },
         { keys: ['O'], label: 'Mở xem video gốc trên Netflix hoặc YouTube' },
         { keys: ['B'], label: 'Quay lại danh sách toàn bộ phim' }
       ]
@@ -59,7 +59,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
       shortcuts: [
         { keys: ['N', 'A'], label: 'Mở cửa sổ thêm từ vựng mới' },
         { keys: ['/'], label: 'Tìm kiếm nhanh trong danh sách từ đã thuộc' },
-        { keys: ['1', '...', '7'], label: 'Lọc theo loại từ và đa nghĩa' }
+        { keys: ['1', '...', '8'], label: 'Lọc: Tất cả (1), Danh (2), Động (3), Tính (4), Trạng (5), Cụm từ (6), Cấu trúc (7), Đa nghĩa (8)' }
       ]
     }
   ];

@@ -22,7 +22,7 @@ export default function VocabularyGrid({
   onToggleMaster,
   onToggleStar
 }: VocabularyGridProps) {
-  const [activeTab, setActiveTab] = useState<'all' | 'noun' | 'verb' | 'adjective' | 'adverb' | 'communicative'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'noun' | 'verb' | 'adjective' | 'adverb' | 'phrase' | 'pattern'>('all');
   const [cefrFilter, setCefrFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [hideMastered, setHideMastered] = useState<boolean>(false);
@@ -64,7 +64,7 @@ export default function VocabularyGrid({
         return;
       }
 
-      // Number keys 1-6 for POS tabs
+      // Number keys 1-7 for POS tabs
       if (e.key === '1') {
         e.preventDefault();
         setActiveTab('all');
@@ -82,7 +82,10 @@ export default function VocabularyGrid({
         setActiveTab('adverb');
       } else if (e.key === '6') {
         e.preventDefault();
-        setActiveTab('communicative');
+        setActiveTab('phrase');
+      } else if (e.key === '7') {
+        e.preventDefault();
+        setActiveTab('pattern');
       }
     };
 
@@ -93,7 +96,8 @@ export default function VocabularyGrid({
   // Count how many items in this movie are already in master list
   const masteredCountInMovie = useMemo(() => {
     let count = 0;
-    items.forEach((item) => {
+    (items || []).forEach((item) => {
+      if (!item) return;
       const k = (item.word || item.sentence || '').trim().toLowerCase();
       if (masteredWords.has(k)) count++;
     });
@@ -102,15 +106,18 @@ export default function VocabularyGrid({
 
   // Stats
   const stats = useMemo(() => {
-    let nouns = 0, verbs = 0, adjs = 0, advs = 0, comms = 0;
+    let nouns = 0, verbs = 0, adjs = 0, advs = 0, phrases = 0, patterns = 0;
     let cefrA1 = 0, cefrA2 = 0, cefrB1 = 0, cefrB2 = 0, cefrC1C2 = 0;
 
-    items.forEach((item) => {
-      if (item.sentence || item.isCommunicative) comms++;
+    (items || []).forEach((item) => {
+      if (!item) return;
+      if (item.pos === 'pattern' || item.isPattern) patterns++;
+      else if (item.pos === 'phrase' || item.isPhrase) phrases++;
       else if (item.pos === 'noun') nouns++;
       else if (item.pos === 'verb') verbs++;
       else if (item.pos === 'adjective') adjs++;
       else if (item.pos === 'adverb') advs++;
+      else if (item.sentence || item.isCommunicative) phrases++;
 
       const c = (item.cefr || '').toUpperCase();
       if (c === 'A1') cefrA1++;
@@ -120,14 +127,14 @@ export default function VocabularyGrid({
       else if (c === 'C1' || c === 'C2') cefrC1C2++;
     });
 
-    const vocabWordsCount = nouns + verbs + adjs + advs;
     return {
-      total: vocabWordsCount || items.length,
+      total: items.length,
       nouns,
       verbs,
       adjs,
       advs,
-      comms,
+      phrases,
+      patterns,
       cefrA1,
       cefrA2,
       cefrB1,
@@ -138,7 +145,8 @@ export default function VocabularyGrid({
 
   // Filtered Items
   const filtered = useMemo(() => {
-    return items.filter((item) => {
+    return (items || []).filter((item) => {
+      if (!item) return false;
       const k = (item.word || item.sentence || '').trim().toLowerCase();
 
       // Hide Mastered Filter (Deduplication against Master List)
@@ -147,8 +155,10 @@ export default function VocabularyGrid({
       }
 
       // POS Tab
-      if (activeTab === 'communicative') {
-        if (!item.sentence && !item.isCommunicative) return false;
+      if (activeTab === 'phrase') {
+        if (item.pos !== 'phrase' && !item.isPhrase && (!item.isCommunicative || item.isPattern)) return false;
+      } else if (activeTab === 'pattern') {
+        if (item.pos !== 'pattern' && !item.isPattern) return false;
       } else if (activeTab !== 'all') {
         if (item.pos !== activeTab) return false;
       }
@@ -164,9 +174,10 @@ export default function VocabularyGrid({
         const wordMatch = k.includes(q);
         const transMatch = (item.vietnamese || item.meaningVi || '').toLowerCase().includes(q);
         const phraseMatch = (item.highlightPhrase || '').toLowerCase().includes(q);
+        const templateMatch = (item.patternTemplate || '').toLowerCase().includes(q);
         const noteMatch = (item.usageNote || '').toLowerCase().includes(q);
         const tagMatch = (item.tag || '').toLowerCase().includes(q);
-        if (!wordMatch && !transMatch && !phraseMatch && !noteMatch && !tagMatch) return false;
+        if (!wordMatch && !transMatch && !phraseMatch && !templateMatch && !noteMatch && !tagMatch) return false;
       }
 
       return true;
@@ -217,8 +228,12 @@ export default function VocabularyGrid({
           <span className="fx-stat-name">Trạng Từ</span>
         </div>
         <div className="fx-stat-card">
-          <span className="fx-stat-num">{stats.comms}</span>
-          <span className="fx-stat-name">Câu Giao Tiếp</span>
+          <span className="fx-stat-num">{stats.phrases}</span>
+          <span className="fx-stat-name">Cụm Từ</span>
+        </div>
+        <div className="fx-stat-card">
+          <span className="fx-stat-num">{stats.patterns}</span>
+          <span className="fx-stat-name">Cấu Trúc Câu</span>
         </div>
       </div>
 
@@ -250,7 +265,8 @@ export default function VocabularyGrid({
               { id: 'verb', label: 'Động từ', keyNum: '3', count: stats.verbs },
               { id: 'adjective', label: 'Tính từ', keyNum: '4', count: stats.adjs },
               { id: 'adverb', label: 'Trạng từ', keyNum: '5', count: stats.advs },
-              { id: 'communicative', label: 'Giao tiếp', keyNum: '6', count: stats.comms }
+              { id: 'phrase', label: 'Cụm từ', keyNum: '6', count: stats.phrases },
+              { id: 'pattern', label: 'Cấu trúc câu', keyNum: '7', count: stats.patterns }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -333,28 +349,32 @@ export default function VocabularyGrid({
           const isMastered = masteredWords.has(key);
           const isStarred = starredWords.has(key);
 
-          // Communicative Sentence Card
-          if (item.sentence || item.isCommunicative) {
+          // 1. Sentence Pattern / Structure Card
+          if (item.pos === 'pattern' || item.isPattern) {
+            const example = item.sentence || item.contexts?.[0]?.text || '';
             return (
-              <div key={idx} className="fx-sentence-card">
+              <div key={idx} className="fx-sentence-card" style={{ borderColor: 'rgba(59, 130, 246, 0.3)' }}>
                 <div className="fx-sent-top">
                   <div className="fx-sent-meta-left">
-                    <span className="fx-sent-tag">{item.tag || 'CÂU GIAO TIẾP'}</span>
+                    <span className="fx-sent-tag" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#60A5FA', borderColor: 'rgba(59, 130, 246, 0.25)' }}>
+                      CẤU TRÚC CÂU
+                    </span>
+                    {item.cefr && <span className="fx-nav-pill-count">{item.cefr}</span>}
                   </div>
                   <div className="fx-sent-actions">
                     <button
                       type="button"
                       onClick={() => onToggleStar(key)}
                       className={`fx-btn-icon-raw ${isStarred ? 'fx-btn-star active' : ''}`}
-                      title={isStarred ? 'Bỏ lưu' : 'Lưu câu'}
+                      title={isStarred ? 'Bỏ lưu' : 'Lưu cấu trúc'}
                     >
                       <Star size={13} fill={isStarred ? 'currentColor' : 'none'} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => speakWord(item.sentence || '', 0.9)}
+                      onClick={() => speakWord(example || item.word, 0.9)}
                       className="fx-btn-icon-raw"
-                      title="Phát âm"
+                      title="Phát âm câu ví dụ"
                     >
                       <Volume2 size={13} />
                     </button>
@@ -370,8 +390,89 @@ export default function VocabularyGrid({
                 </div>
 
                 <div className="fx-sent-body">
-                  <p className="fx-sent-quote">"{item.sentence}"</p>
-                  <p className="fx-sent-trans">{item.vietnamese || item.meaningVi}</p>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--fx-text-primary)', marginBottom: '4px', letterSpacing: '-0.01em' }}>
+                    {item.patternTemplate || item.word}
+                  </div>
+                  <p className="fx-sent-trans" style={{ color: 'var(--fx-text-primary)', fontWeight: 500, fontSize: '13px', margin: '4px 0 6px' }}>
+                    {item.vietnamese || item.meaningVi}
+                  </p>
+                  {example && (
+                    <p className="fx-sent-quote" style={{ fontStyle: 'italic', color: 'var(--fx-text-secondary)', fontSize: '12px' }}>
+                      "{example}"
+                    </p>
+                  )}
+                </div>
+
+                {item.usageNote && (
+                  <div className="fx-sent-footer">
+                    <span className="fx-sent-note">{item.usageNote}</span>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // 2. Phrase Card (Collocation, Idiom, Phrasal Verb)
+          if (item.pos === 'phrase' || item.isPhrase) {
+            const quote = item.sentence || item.contexts?.[0]?.text || '';
+            const phraseLabel = item.phraseCategory === 'phrasal_verb'
+              ? 'ĐỘNG TỪ GHÉP'
+              : item.phraseCategory === 'idiom'
+              ? 'THÀNH NGỮ'
+              : item.phraseCategory === 'slang'
+              ? 'TIẾNG LÓNG'
+              : 'CỤM TỪ';
+
+            return (
+              <div key={idx} className="fx-sentence-card" style={{ borderColor: 'rgba(234, 179, 8, 0.25)' }}>
+                <div className="fx-sent-top">
+                  <div className="fx-sent-meta-left">
+                    <span className="fx-sent-tag" style={{ background: 'rgba(234, 179, 8, 0.12)', color: '#FACC15', borderColor: 'rgba(234, 179, 8, 0.25)' }}>
+                      {phraseLabel}
+                    </span>
+                    {item.cefr && <span className="fx-nav-pill-count">{item.cefr}</span>}
+                    {item.frequency > 1 && <span className="fx-nav-pill-count">{item.frequency}x</span>}
+                  </div>
+                  <div className="fx-sent-actions">
+                    <button
+                      type="button"
+                      onClick={() => onToggleStar(key)}
+                      className={`fx-btn-icon-raw ${isStarred ? 'fx-btn-star active' : ''}`}
+                      title={isStarred ? 'Bỏ lưu' : 'Lưu cụm từ'}
+                    >
+                      <Star size={13} fill={isStarred ? 'currentColor' : 'none'} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => speakWord(item.word, 0.95)}
+                      className="fx-btn-icon-raw"
+                      title="Phát âm cụm từ"
+                    >
+                      <Volume2 size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onToggleMaster(item)}
+                      className={`fx-btn-icon-raw ${isMastered ? 'fx-btn-check active' : ''}`}
+                      title={isMastered ? 'Bỏ khỏi Master List' : 'Đánh dấu đã biết'}
+                    >
+                      <Check size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="fx-sent-body">
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--fx-text-primary)', marginBottom: '4px' }}>
+                    {item.word}
+                  </div>
+                  <p className="fx-sent-trans" style={{ color: 'var(--fx-text-primary)', fontSize: '13px', margin: '4px 0 6px' }}>
+                    {item.vietnamese || item.meaningVi}
+                  </p>
+                  {quote && (
+                    <p className="fx-sent-quote" style={{ fontStyle: 'italic', color: 'var(--fx-text-secondary)', fontSize: '12px' }}>
+                      "{quote}"
+                    </p>
+                  )}
                 </div>
 
                 {item.usageNote && (

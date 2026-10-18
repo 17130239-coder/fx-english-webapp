@@ -70,7 +70,7 @@ export default function MasterListView({
         return;
       }
 
-      // 1-7: POS tabs
+      // 1-8: POS, Phrase, Pattern, Polysemy tabs
       if (e.key === '1') {
         e.preventDefault();
         setActiveTab('all');
@@ -88,8 +88,11 @@ export default function MasterListView({
         setActiveTab('adv');
       } else if (e.key === '6') {
         e.preventDefault();
-        setActiveTab('sentences');
+        setActiveTab('phrase');
       } else if (e.key === '7') {
+        e.preventDefault();
+        setActiveTab('pattern');
+      } else if (e.key === '8') {
         e.preventDefault();
         setActiveTab('polysemy');
       }
@@ -134,11 +137,15 @@ export default function MasterListView({
 
   // Tab Counts
   const tabCounts = useMemo(() => {
-    let nouns = 0, verbs = 0, adjs = 0, advs = 0, sentences = 0, polysemy = 0;
+    let nouns = 0, verbs = 0, adjs = 0, advs = 0, phrases = 0, patterns = 0, polysemy = 0;
     (items || []).forEach((item) => {
       if (!item) return;
       const pos = (item.pos || '').toUpperCase();
-      if (item.type === 'sentence' || pos === 'IDIOM') sentences++;
+      const isPat = item.type === 'pattern' || pos === 'PATTERN' || Boolean(item.patternTemplate);
+      const isPhr = item.type === 'phrase' || pos === 'PHRASE' || pos === 'IDIOM' || item.type === 'sentence';
+
+      if (isPat) patterns++;
+      else if (isPhr) phrases++;
       else if (pos === 'N' || pos === 'NOUN') nouns++;
       else if (pos === 'V' || pos === 'VERB') verbs++;
       else if (pos === 'ADJ' || pos === 'ADJECTIVE') adjs++;
@@ -148,7 +155,7 @@ export default function MasterListView({
         polysemy++;
       }
     });
-    return { all: items.length, nouns, verbs, adjs, advs, sentences, polysemy };
+    return { all: items.length, nouns, verbs, adjs, advs, phrases, patterns, polysemy };
   }, [items]);
 
   // Filtered Items
@@ -156,7 +163,8 @@ export default function MasterListView({
     return (items || []).filter((item) => {
       if (!item) return false;
       const pos = (item.pos || '').toUpperCase();
-      const isSentence = item.type === 'sentence' || pos === 'IDIOM';
+      const isPat = item.type === 'pattern' || pos === 'PATTERN' || Boolean(item.patternTemplate);
+      const isPhr = item.type === 'phrase' || pos === 'PHRASE' || pos === 'IDIOM' || (item.type === 'sentence' && !item.patternTemplate);
 
       if (activeTab === 'noun') {
         if (pos !== 'N' && pos !== 'NOUN') return false;
@@ -166,8 +174,10 @@ export default function MasterListView({
         if (pos !== 'ADJ' && pos !== 'ADJECTIVE') return false;
       } else if (activeTab === 'adv') {
         if (pos !== 'ADV' && pos !== 'ADVERB') return false;
-      } else if (activeTab === 'sentences') {
-        if (!isSentence) return false;
+      } else if (activeTab === 'phrase') {
+        if (!isPhr) return false;
+      } else if (activeTab === 'pattern') {
+        if (!isPat) return false;
       } else if (activeTab === 'polysemy') {
         if (!Array.isArray(item.knownMeanings) || item.knownMeanings.length < 2) return false;
       }
@@ -267,8 +277,9 @@ export default function MasterListView({
               { id: 'verb', label: 'Động từ', keyNum: '3', count: tabCounts.verbs },
               { id: 'adj', label: 'Tính từ', keyNum: '4', count: tabCounts.adjs },
               { id: 'adv', label: 'Trạng từ', keyNum: '5', count: tabCounts.advs },
-              { id: 'sentences', label: 'Câu giao tiếp', keyNum: '6', count: tabCounts.sentences },
-              { id: 'polysemy', label: 'Đa nghĩa', keyNum: '7', count: tabCounts.polysemy }
+              { id: 'phrase', label: 'Cụm từ', keyNum: '6', count: tabCounts.phrases },
+              { id: 'pattern', label: 'Cấu trúc câu', keyNum: '7', count: tabCounts.patterns },
+              { id: 'polysemy', label: 'Đa nghĩa', keyNum: '8', count: tabCounts.polysemy }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -327,17 +338,30 @@ export default function MasterListView({
         <div className="fx-cards-grid">
           {filtered.map((item) => {
             const isPolysemy = Array.isArray(item.knownMeanings) && item.knownMeanings.length > 1;
+            const isPat = item.type === 'pattern' || (item.pos || '').toUpperCase() === 'PATTERN' || Boolean(item.patternTemplate);
+            const isPhr = item.type === 'phrase' || (item.pos || '').toUpperCase() === 'PHRASE' || (item.pos || '').toUpperCase() === 'IDIOM' || item.type === 'sentence';
+            const displayPos = isPat ? 'Cấu trúc' : isPhr ? 'Cụm từ' : (item.pos || 'N');
 
             return (
               <div key={item.id || item.text} className="fx-word-card">
-                {/* Line 1: Word + POS + CEFR (NO 26x frequency!) */}
+                {/* Line 1: Word + POS + CEFR */}
                 <div className="fx-card-line-1">
                   <div className="fx-card-word-wrap">
                     <span className="fx-card-word">{item.text}</span>
                     <span className="fx-card-specs">
-                      {item.pos || 'N'}
+                      {displayPos}
                       {item.cefr && ` · ${item.cefr}`}
                     </span>
+                    {isPat && (
+                      <span className="fx-badge-new-meaning" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60A5FA', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
+                        Cấu trúc câu
+                      </span>
+                    )}
+                    {isPhr && !isPat && (
+                      <span className="fx-badge-new-meaning" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#FACC15', borderColor: 'rgba(234, 179, 8, 0.3)' }}>
+                        Cụm từ
+                      </span>
+                    )}
                     {isPolysemy && (
                       <span className="fx-badge-new-meaning" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#93C5FD', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
                         Đa nghĩa

@@ -24,6 +24,8 @@ export async function GET() {
         verb_count as "verbCount", 
         adj_count as "adjCount", 
         adv_count as "advCount",
+        phrase_count as "phraseCount",
+        pattern_count as "patternCount",
         created_at as "createdAt"
       FROM fx_scanned_movies
       ORDER BY timestamp DESC
@@ -45,7 +47,7 @@ export async function POST(req: Request) {
   try {
     await ensureSchema();
     const body = await req.json();
-    const { id, title, platform, url, timestamp, dateFormatted, wordCount, nounCount, verbCount, adjCount, advCount, cues, analysis } = body;
+    const { id, title, platform, url, timestamp, dateFormatted, wordCount, nounCount, verbCount, adjCount, advCount, phraseCount, patternCount, cues, analysis } = body;
 
     const newId = id || `scan_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const finalTimestamp = timestamp || Date.now();
@@ -58,10 +60,13 @@ export async function POST(req: Request) {
       finalPlatform = 'youtube';
     }
 
+    const finalPhraseCount = phraseCount || analysis?.totals?.phrases || analysis?.phrases?.length || 0;
+    const finalPatternCount = patternCount || analysis?.totals?.patterns || analysis?.patterns?.length || analysis?.sentenceStructures?.length || 0;
+
     const rows = await sql`
       INSERT INTO fx_scanned_movies (
         id, title, platform, url, timestamp, date_formatted,
-        word_count, noun_count, verb_count, adj_count, adv_count,
+        word_count, noun_count, verb_count, adj_count, adv_count, phrase_count, pattern_count,
         cues, analysis, updated_at
       )
       VALUES (
@@ -76,6 +81,8 @@ export async function POST(req: Request) {
         ${verbCount || 0},
         ${adjCount || 0},
         ${advCount || 0},
+        ${finalPhraseCount},
+        ${finalPatternCount},
         ${JSON.stringify(cues || [])}::jsonb,
         ${JSON.stringify(analysis || {})}::jsonb,
         NOW()
@@ -91,6 +98,8 @@ export async function POST(req: Request) {
         verb_count = EXCLUDED.verb_count,
         adj_count = EXCLUDED.adj_count,
         adv_count = EXCLUDED.adv_count,
+        phrase_count = EXCLUDED.phrase_count,
+        pattern_count = EXCLUDED.pattern_count,
         cues = EXCLUDED.cues,
         analysis = EXCLUDED.analysis,
         updated_at = NOW()
