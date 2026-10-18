@@ -238,15 +238,14 @@ export function MovieDetailSkeleton({ count = 9 }: { count?: number }) {
           gap: '10px'
         }}
       >
+        <Skeleton width="55%" height="24px" borderRadius="4px" />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Skeleton width="8px" height="8px" borderRadius="50%" />
-          <Skeleton width="60px" height="14px" borderRadius="3px" />
+          <Skeleton width="55px" height="13px" borderRadius="3px" />
           <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
           <Skeleton width="75px" height="13px" borderRadius="3px" />
           <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
           <Skeleton width="115px" height="13px" borderRadius="3px" />
         </div>
-        <Skeleton width="55%" height="26px" borderRadius="4px" />
       </div>
 
       {/* CEFR Distribution Bar Skeleton */}

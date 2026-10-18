@@ -348,26 +348,8 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
               padding: '16px 20px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '8px'
+              gap: '6px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  className={`fx-platform-dot ${
-                    isNetflix ? 'platform-nf' : isYouTube ? 'platform-yt' : ''
-                  }`}
-                  style={!isNetflix && !isYouTube ? { background: '#A1A1AA' } : {}}
-                />
-                <span className="fx-platform-tag">{platformLabel}</span>
-                <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
-                <span style={{ fontSize: '11px', color: 'var(--fx-text-secondary)' }}>
-                  {movie.dateFormatted || 'Đã quét'}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
-                <span style={{ fontSize: '11px', color: 'var(--fx-text-secondary)' }}>
-                  {vocab.length} từ vựng & mẫu câu
-                </span>
-              </div>
-
               <h1 style={{
                 fontSize: '22px',
                 fontWeight: 700,
@@ -377,6 +359,16 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
               }}>
                 {movie.title}
               </h1>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--fx-text-secondary)', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--fx-text-primary)', fontWeight: 500 }}>
+                  {isNetflix ? 'Netflix' : isYouTube ? 'YouTube' : (movie.platform || 'File')}
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
+                <span>{movie.dateFormatted || 'Đã quét'}</span>
+                <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
+                <span>{vocab.length} từ vựng & mẫu câu</span>
+              </div>
             </div>
 
             {/* Vocabulary Grid */}
