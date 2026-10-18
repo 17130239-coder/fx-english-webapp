@@ -31,6 +31,38 @@ export default function Dashboard() {
   const [starredWords, setStarredWords] = useState<Set<string>>(new Set());
   const [dbConnected, setDbConnected] = useState<boolean>(false);
 
+  // Theme State (Dark / Light)
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('fx-theme');
+      if (saved === 'light' || saved === 'dark') {
+        setTheme(saved);
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        setTheme('light');
+      }
+    } catch (e) {}
+  }, []);
+
+  const handleToggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    try {
+      if (nextTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('fx-theme', 'light');
+      } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('fx-theme', 'dark');
+      }
+    } catch (e) {}
+  };
+
   // Flashcards State
   const [isFlashcardOpen, setIsFlashcardOpen] = useState<boolean>(false);
 
@@ -583,6 +615,8 @@ export default function Dashboard() {
         onOpenFlashcards={handleOpenFlashcards}
         onExportAnki={handleExportAnki}
         onExportCsv={handleExportCsv}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Main Content Area */}

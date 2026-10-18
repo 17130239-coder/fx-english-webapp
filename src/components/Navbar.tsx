@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Layers, Download, FileSpreadsheet } from 'lucide-react';
+import { Layers, Download, FileSpreadsheet, Sun, Moon } from 'lucide-react';
 
 interface NavbarProps {
   activeView: 'studio' | 'master';
@@ -11,6 +11,8 @@ interface NavbarProps {
   onOpenFlashcards: () => void;
   onExportAnki: () => void;
   onExportCsv: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
 export default function Navbar({
@@ -20,7 +22,9 @@ export default function Navbar({
   dbConnected,
   onOpenFlashcards,
   onExportAnki,
-  onExportCsv
+  onExportCsv,
+  theme,
+  onToggleTheme
 }: NavbarProps) {
   return (
     <header className="fx-navbar">
@@ -34,7 +38,7 @@ export default function Navbar({
             textTransform: 'uppercase',
             padding: '2px 6px',
             borderRadius: '4px',
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: 'var(--fx-bg-surface-hover)',
             color: 'var(--fx-text-secondary)',
             border: '1px solid var(--fx-border-subtle)'
           }}>
@@ -95,6 +99,18 @@ export default function Navbar({
         >
           <FileSpreadsheet size={13} />
           <span>CSV</span>
+        </button>
+
+        {/* Light / Dark Mode Toggle */}
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          className="fx-btn-tesla-ghost-sm"
+          title={theme === 'light' ? 'Chuyển sang giao diện Tối (Dark Mode)' : 'Chuyển sang giao diện Sáng (Light Mode)'}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+        >
+          {theme === 'light' ? <Moon size={13} /> : <Sun size={13} />}
+          <span>{theme === 'light' ? 'Tối' : 'Sáng'}</span>
         </button>
 
         {/* Minimal Neon Status Dot (6px circle) */}

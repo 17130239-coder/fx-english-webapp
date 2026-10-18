@@ -90,7 +90,7 @@ export default function VocabularyGrid({
       {/* Header Title */}
       <div className="fx-section-header" style={{ marginBottom: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-          <h2>Từ vựng: <span style={{ color: '#FFFFFF', fontWeight: 600 }}>{movieTitle}</span></h2>
+          <h2>Từ vựng: <span style={{ color: 'var(--fx-text-primary)', fontWeight: 600 }}>{movieTitle}</span></h2>
           <span className="fx-nav-pill-count">{filtered.length} / {items.length} mục</span>
         </div>
       </div>
