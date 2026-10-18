@@ -154,13 +154,15 @@ export default function Dashboard() {
 
   // 1. Fetch Movies from Neon Serverless
   const fetchMovies = useCallback(async () => {
-    setLoadingMovies(true);
     try {
-      const res = await fetch('/api/movies', { cache: 'no-store' });
+      const res = await fetch('/api/movies');
       const data = await res.json();
       if (data.success && Array.isArray(data.movies)) {
         setMovies(data.movies);
         setDbConnected(true);
+        try {
+          localStorage.setItem('fx_cached_movies', JSON.stringify(data.movies));
+        } catch (e) {}
       } else {
         setDbConnected(false);
       }
@@ -174,9 +176,8 @@ export default function Dashboard() {
 
   // 2. Fetch Master List from Neon Serverless
   const fetchMasterList = useCallback(async () => {
-    setLoadingMaster(true);
     try {
-      const res = await fetch('/api/master-list', { cache: 'no-store' });
+      const res = await fetch('/api/master-list');
       const data = await res.json();
       if (data.success && Array.isArray(data.items)) {
         setMasterItems(data.items);
@@ -185,6 +186,9 @@ export default function Dashboard() {
           if (item && item.text) set.add(item.text.toLowerCase());
         });
         setMasteredWords(set);
+        try {
+          localStorage.setItem('fx_cached_master', JSON.stringify(data.items));
+        } catch (e) {}
       }
     } catch (e) {
       console.warn('Could not connect to /api/master-list:', e);
@@ -194,12 +198,43 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    // 1. Instant Cache Hydration (SWR Pattern for 0ms First Paint)
+    try {
+      const cachedMoviesRaw = localStorage.getItem('fx_cached_movies');
+      if (cachedMoviesRaw) {
+        const parsed = JSON.parse(cachedMoviesRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMovies(parsed);
+          setLoadingMovies(false);
+          setDbConnected(true);
+        }
+      }
+
+      const cachedMasterRaw = localStorage.getItem('fx_cached_master');
+      if (cachedMasterRaw) {
+        const parsed = JSON.parse(cachedMasterRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMasterItems(parsed);
+          const set = new Set<string>();
+          parsed.forEach((item: MasterItem) => {
+            if (item && item.text) set.add(item.text.toLowerCase());
+          });
+          setMasteredWords(set);
+          setLoadingMaster(false);
+        }
+      }
+    } catch (e) {
+      console.warn('Local cache hydration error:', e);
+    }
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('view') === 'master') {
         setActiveView('master');
       }
     }
+
+    // 2. Silent Background Revalidation
     fetchMovies();
     fetchMasterList();
   }, [fetchMovies, fetchMasterList]);
@@ -685,30 +720,32 @@ export default function Dashboard() {
 
       {/* Main Content Area */}
       <main className="fx-container" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        {activeView === 'studio' ? (
-          <ScannedHistory
-            movies={movies}
-            selectedMovieId={null}
-            onSelectMovie={(m) => router.push(`/movies/${encodeURIComponent(m.id)}`)}
-            onDeleteMovie={handleDeleteMovie}
-            onClearAll={handleClearAllMovies}
-            loading={loadingMovies}
-          />
-        ) : (
-          /* Master Known List Management View */
-          <MasterListView
-            items={masterItems}
-            onAddWord={handleAddMasterWord}
-            onRemoveWord={handleRemoveMasterWord}
-            onAddMeaning={handleAddMeaningInline}
-            onRemoveMeaning={handleRemoveMeaning}
-            onClearAll={handleClearAllMaster}
-            onExportAnki={handleExportAnki}
-            onExportCsv={handleExportCsv}
-            onImportItems={handleImportMasterItems}
-            loading={loadingMaster}
-          />
-        )}
+        <div key={activeView} className="fx-tab-pane">
+          {activeView === 'studio' ? (
+            <ScannedHistory
+              movies={movies}
+              selectedMovieId={null}
+              onSelectMovie={(m) => router.push(`/movies/${encodeURIComponent(m.id)}`)}
+              onDeleteMovie={handleDeleteMovie}
+              onClearAll={handleClearAllMovies}
+              loading={loadingMovies}
+            />
+          ) : (
+            /* Master Known List Management View */
+            <MasterListView
+              items={masterItems}
+              onAddWord={handleAddMasterWord}
+              onRemoveWord={handleRemoveMasterWord}
+              onAddMeaning={handleAddMeaningInline}
+              onRemoveMeaning={handleRemoveMeaning}
+              onClearAll={handleClearAllMaster}
+              onExportAnki={handleExportAnki}
+              onExportCsv={handleExportCsv}
+              onImportItems={handleImportMasterItems}
+              loading={loadingMaster}
+            />
+          )}
+        </div>
       </main>
 
       {/* 3D Flashcards Modal */}

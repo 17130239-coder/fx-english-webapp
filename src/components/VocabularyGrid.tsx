@@ -281,16 +281,6 @@ export default function VocabularyGrid({
 
   return (
     <div className="fx-vocab-section">
-      {/* Header Title */}
-      <div className="fx-section-header" style={{ marginBottom: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-          <h2>Từ vựng: <span style={{ color: 'var(--fx-text-primary)', fontWeight: 600 }}>{movieTitle}</span></h2>
-          <span className="fx-nav-pill-count">
-            {filtered.length} / {items.length} mục{hideMastered ? ' (đã ẩn từ thuộc)' : ''}
-          </span>
-        </div>
-      </div>
-
       {/* Stats Summary Strip (Tesla Dashboard KPIs) */}
       <div className="fx-stats-strip">
         <div className="fx-stat-card">
@@ -429,7 +419,7 @@ export default function VocabularyGrid({
       </div>
 
       {/* Vocabulary Cards Grid (Tesla 3-Line Hardware Look) */}
-      <div className="fx-cards-grid">
+      <div key={activeTab} className="fx-cards-grid fx-tab-pane">
         {filtered.length === 0 ? (
           <div
             style={{

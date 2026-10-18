@@ -198,23 +198,55 @@ body {
   padding: 5px 12px;
   border-radius: 6px;
   cursor: pointer;
-  transition: var(--fx-transition-fast);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
 
 .fx-nav-tab:hover {
   color: var(--fx-text-primary);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.fx-nav-tab:active {
+  transform: scale(0.96);
 }
 
 .fx-nav-tab.active {
   color: #000000;
   background: #FFFFFF;
   font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  animation: fx-tab-active-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .fx-nav-tab.active .fx-nav-pill-count {
   background: rgba(0, 0, 0, 0.15);
   color: #000000;
+}
+
+@keyframes fx-tab-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fx-tab-active-pop {
+  0% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.fx-tab-pane {
+  animation: fx-tab-fade-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
 }
 
 .fx-nav-pill-count {
@@ -846,18 +878,25 @@ body {
   padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
-  transition: var(--fx-transition-fast);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
 
 .fx-tab-btn:hover {
   color: var(--fx-text-primary);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.fx-tab-btn:active {
+  transform: scale(0.96);
 }
 
 .fx-tab-btn.active {
   background: var(--fx-bg-surface-hover);
   color: var(--fx-text-primary);
   font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  animation: fx-tab-active-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .fx-filter-controls {

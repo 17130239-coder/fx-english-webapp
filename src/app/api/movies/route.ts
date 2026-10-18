@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { sql, ensureSchema } from '@/lib/neon';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 export async function GET(req: Request) {
   if (!sql) {
@@ -10,7 +9,6 @@ export async function GET(req: Request) {
   }
 
   try {
-    await ensureSchema();
     const { searchParams } = new URL(req.url);
     const isFull = searchParams.get('full') === 'true' || searchParams.get('export') === 'true';
 
@@ -60,7 +58,14 @@ export async function GET(req: Request) {
       `;
     }
 
-    return NextResponse.json({ success: true, movies: rows });
+    return NextResponse.json(
+      { success: true, movies: rows },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59'
+        }
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching movies:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

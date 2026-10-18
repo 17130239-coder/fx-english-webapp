@@ -167,10 +167,28 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isShortcutsOpen, isFlashcardOpen, modalConfig.isOpen, theme, vocab, movie, router]);
 
-  // Fetch Movie Details
+  // Fetch Movie Details (Instant Cache Hydration + Silent Background Revalidation)
   const fetchMovie = useCallback(async () => {
-    setLoading(true);
+    let hasCached = false;
+    try {
+      const cached = sessionStorage.getItem(`fx_movie_${movieId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.id) {
+          setMovie(parsed);
+          const extracted = extractVocabFromAnalysis(parsed.analysis);
+          setVocab(extracted);
+          setLoading(false);
+          hasCached = true;
+        }
+      }
+    } catch (e) {}
+
+    if (!hasCached) {
+      setLoading(true);
+    }
     setError(null);
+
     try {
       const res = await fetch(`/api/movies/${encodeURIComponent(movieId)}`);
       const data = await res.json();
@@ -178,19 +196,42 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         setMovie(data.movie);
         const extracted = extractVocabFromAnalysis(data.movie.analysis);
         setVocab(extracted);
+        try {
+          sessionStorage.setItem(`fx_movie_${movieId}`, JSON.stringify(data.movie));
+        } catch (e) {}
       } else {
-        setError(data.error || 'Không tìm thấy dữ liệu cho phim này.');
+        if (!hasCached) {
+          setError(data.error || 'Không tìm thấy dữ liệu cho phim này.');
+        }
       }
     } catch (err: any) {
       console.error('Error fetching movie:', err);
-      setError('Lỗi kết nối cơ sở dữ liệu.');
+      if (!hasCached) {
+        setError('Lỗi kết nối cơ sở dữ liệu.');
+      }
     } finally {
       setLoading(false);
     }
   }, [movieId]);
 
-  // Fetch Master List
+  // Fetch Master List (Hydrated instantly from local cache)
   const fetchMasterList = useCallback(async () => {
+    try {
+      const cachedMasterRaw = localStorage.getItem('fx_cached_master');
+      if (cachedMasterRaw) {
+        const parsed = JSON.parse(cachedMasterRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMasterItems(parsed);
+          const set = new Set<string>();
+          parsed.forEach((item: MasterItem) => {
+            if (item && item.text) set.add(item.text.toLowerCase());
+          });
+          setMasteredWords(set);
+          setDbConnected(true);
+        }
+      }
+    } catch (e) {}
+
     try {
       const res = await fetch('/api/master-list');
       const data = await res.json();
@@ -202,6 +243,9 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         });
         setMasteredWords(set);
         setDbConnected(true);
+        try {
+          localStorage.setItem('fx_cached_master', JSON.stringify(data.items));
+        } catch (e) {}
       }
     } catch (e) {
       console.warn('Could not connect to /api/master-list:', e);
@@ -310,13 +354,24 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
   };
 
   // Export this specific movie episode vocabulary as JSON
-  const handleExportMovieDetailJson = () => {
+  const handleExportMovieDetailJson = async () => {
     if (!movie) {
       showToast('Dữ liệu phim chưa sẵn sàng để xuất.', 'warning');
       return;
     }
 
     try {
+      let fullCues = movie.cues || [];
+      if (fullCues.length === 0) {
+        try {
+          const res = await fetch(`/api/movies/${encodeURIComponent(movie.id)}?cues=true`);
+          const d = await res.json();
+          if (d.success && d.movie && Array.isArray(d.movie.cues)) {
+            fullCues = d.movie.cues;
+          }
+        } catch (e) {}
+      }
+
       const safeTitle = (movie.title || 'movie').replace(/[^\w\s\-_]/g, '_').trim();
       const exportPayload = {
         exportType: 'single_movie_vocabulary',
@@ -338,7 +393,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         },
         vocabularyCount: vocab.length,
         vocabulary: vocab,
-        cues: movie.cues || []
+        cues: fullCues
       };
 
       triggerDownload(

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { sql, ensureSchema } from '@/lib/neon';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 export async function GET() {
   if (!sql) {
@@ -10,7 +9,6 @@ export async function GET() {
   }
 
   try {
-    await ensureSchema();
     const rows = await sql`
       SELECT 
         id, 
@@ -24,7 +22,14 @@ export async function GET() {
       ORDER BY created_at DESC;
     `;
 
-    return NextResponse.json({ success: true, items: rows });
+    return NextResponse.json(
+      { success: true, items: rows },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=59'
+        }
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching master list:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

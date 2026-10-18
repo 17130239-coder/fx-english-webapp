@@ -46,7 +46,6 @@ export default function Navbar({
             height={24}
             className="fx-nav-brand-logo"
           />
-          <span className="fx-nav-title">FX English</span>
         </button>
 
         <nav className="fx-nav-switcher">
@@ -71,7 +70,7 @@ export default function Navbar({
       </div>
 
       <div className="fx-nav-actions">
-        {/* Export JSON Button */}
+        {/* Export JSON Button (Icon only) */}
         {onExportJson && (
           <button
             type="button"
@@ -79,10 +78,9 @@ export default function Navbar({
             className="fx-btn-tesla-ghost-sm"
             title={exportJsonTitle || "Xuất dữ liệu JSON"}
             aria-label={exportJsonTitle || "Xuất dữ liệu JSON"}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', fontSize: '12px' }}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px 8px' }}
           >
-            <Download size={13} />
-            <span>JSON</span>
+            <Download size={14} />
           </button>
         )}
 

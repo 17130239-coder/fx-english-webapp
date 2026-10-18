@@ -414,7 +414,7 @@ export default function MasterListView({
           Không tìm thấy từ vựng nào phù hợp với bộ lọc.
         </div>
       ) : (
-        <div className="fx-cards-grid">
+        <div key={activeTab} className="fx-cards-grid fx-tab-pane">
           {filtered.map((item) => {
             const isPolysemy = Array.isArray(item.knownMeanings) && item.knownMeanings.length > 1;
             const isPat = item.type === 'pattern' || (item.pos || '').toUpperCase() === 'PATTERN' || Boolean(item.patternTemplate);
