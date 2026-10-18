@@ -176,7 +176,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         const parsed = JSON.parse(cached);
         if (parsed && parsed.id) {
           setMovie(parsed);
-          const extracted = extractVocabFromAnalysis(parsed.analysis);
+          const extracted = Array.isArray(parsed.vocabulary) ? parsed.vocabulary : extractVocabFromAnalysis(parsed.analysis);
           setVocab(extracted);
           setLoading(false);
           hasCached = true;
@@ -194,7 +194,9 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
       const data = await res.json();
       if (data.success && data.movie) {
         setMovie(data.movie);
-        const extracted = extractVocabFromAnalysis(data.movie.analysis);
+        const extracted = Array.isArray(data.movie.vocabulary)
+          ? data.movie.vocabulary
+          : extractVocabFromAnalysis(data.movie.analysis);
         setVocab(extracted);
         try {
           sessionStorage.setItem(`fx_movie_${movieId}`, JSON.stringify(data.movie));

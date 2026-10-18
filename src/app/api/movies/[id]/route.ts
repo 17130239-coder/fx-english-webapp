@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql, ensureSchema } from '@/lib/neon';
+import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,7 @@ export async function GET(
     const { id } = await params;
     const { searchParams } = new URL(req.url);
     const includeCues = searchParams.get('cues') === 'true';
+    const rawAnalysis = searchParams.get('raw') === 'true';
 
     let rows;
     if (includeCues) {
@@ -64,8 +66,20 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Movie not found' }, { status: 404 });
     }
 
+    const movie = rows[0];
+
+    // Optimize payload: extract clean vocabulary and strip out 750KB+ of duplicate analysis structures
+    if (!rawAnalysis && movie.analysis) {
+      let analysisObj = movie.analysis;
+      if (typeof analysisObj === 'string') {
+        try { analysisObj = JSON.parse(analysisObj); } catch (e) { analysisObj = {}; }
+      }
+      movie.vocabulary = extractVocabFromAnalysis(analysisObj);
+      delete movie.analysis;
+    }
+
     return NextResponse.json(
-      { success: true, movie: rows[0] },
+      { success: true, movie },
       {
         headers: {
           'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120'
