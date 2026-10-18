@@ -50,3 +50,55 @@ export function analyzeSubtitlesOffline(cues: Array<{ text: string; start?: numb
   }
   return analyzer.analyzeSubtitles(cues);
 }
+
+import { VocabItem } from './types';
+
+export function extractVocabFromAnalysis(analysis: any): VocabItem[] {
+  if (!analysis) return [];
+  const list: VocabItem[] = [];
+
+  // Categories: Noun, Verb, Adjective, Adverb
+  const categories = ['noun', 'verb', 'adjective', 'adverb'];
+  categories.forEach((posKey) => {
+    const cat = analysis.categories?.[posKey];
+    if (cat && Array.isArray(cat.words)) {
+      cat.words.forEach((w: any) => {
+        list.push({
+          word: w.word,
+          pos: posKey,
+          posLabelVi: cat.labelVi || posKey,
+          cefr: w.cefr || 'B1',
+          ipa: w.ipa || '',
+          vietnamese: w.vietnamese || '',
+          meaningVi: w.vietnamese || '',
+          frequency: w.frequency || 1,
+          contexts: Array.isArray(w.contexts) ? w.contexts : [],
+          mastered: false
+        });
+      });
+    }
+  });
+
+  // Communicative Sentences
+  if (Array.isArray(analysis.sentences)) {
+    analysis.sentences.forEach((s: any) => {
+      list.push({
+        word: s.cleanSentence || s.sentence || '',
+        sentence: s.cleanSentence || s.sentence || '',
+        cleanSentence: s.cleanSentence || s.sentence || '',
+        pos: 'communicative',
+        cefr: 'B1',
+        ipa: '',
+        vietnamese: s.vietnamese || '',
+        meaningVi: s.vietnamese || '',
+        frequency: 1,
+        contexts: [{ text: s.cleanSentence || s.sentence || '' }],
+        highlightPhrase: s.highlightPhrase,
+        usageNote: s.usageNote,
+        tag: s.tag || 'Giao tiếp'
+      });
+    });
+  }
+
+  return list;
+}

@@ -1,28 +1,24 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from './Navbar';
 import ScannedHistory from './ScannedHistory';
-import VocabularyGrid from './VocabularyGrid';
 import MasterListView from './MasterListView';
 import FlashcardModal from './FlashcardModal';
 import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
 import {
-  exportVocabToAnki,
-  exportVocabToCsv,
   exportMasterToAnki,
   exportMasterToCsv,
   triggerDownload
 } from '@/lib/export';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [activeView, setActiveView] = useState<'studio' | 'master'>('studio');
   const [movies, setMovies] = useState<ScannedMovie[]>([]);
-  const [selectedMovie, setSelectedMovie] = useState<ScannedMovie | null>(null);
-  const [currentVocab, setCurrentVocab] = useState<VocabItem[]>([]);
-  const [currentMovieTitle, setCurrentMovieTitle] = useState<string>('Phim mẫu');
 
   // Master List & States
   const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
@@ -105,17 +101,12 @@ export default function Dashboard() {
       if (data.success && Array.isArray(data.movies)) {
         setMovies(data.movies);
         setDbConnected(true);
-
-        // If no movie is currently selected, select the latest one
-        if (!selectedMovie && data.movies.length > 0) {
-          loadMovieDetails(data.movies[0]);
-        }
       }
     } catch (e) {
       console.warn('Could not connect to /api/movies:', e);
       setDbConnected(false);
     }
-  }, [selectedMovie]);
+  }, []);
 
   // 2. Fetch Master List from Neon Serverless
   const fetchMasterList = useCallback(async () => {
@@ -136,82 +127,16 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view') === 'master') {
+        setActiveView('master');
+      }
+    }
     fetchMovies();
     fetchMasterList();
   }, [fetchMovies, fetchMasterList]);
 
-  // Load Full Movie Details (including heavy analysis JSONB)
-  const loadMovieDetails = async (movie: ScannedMovie) => {
-    setSelectedMovie(movie);
-    setCurrentMovieTitle(movie.title);
-
-    try {
-      const res = await fetch(`/api/movies/${movie.id}`);
-      const data = await res.json();
-      if (data.success && data.movie && data.movie.analysis) {
-        const vocab = extractVocabFromAnalysis(data.movie.analysis);
-        setCurrentVocab(vocab);
-      } else {
-        // Empty or lightweight fallback
-        setCurrentVocab([]);
-      }
-    } catch (err) {
-      console.error('Error loading movie details:', err);
-    }
-  };
-
-  // Convert raw analysis JSON into flattened VocabItem list
-  const extractVocabFromAnalysis = (analysis: any): VocabItem[] => {
-    if (!analysis) return [];
-    const list: VocabItem[] = [];
-
-    // Categories
-    const categories = ['noun', 'verb', 'adjective', 'adverb'];
-    categories.forEach((posKey) => {
-      const cat = analysis.categories?.[posKey];
-      if (cat && Array.isArray(cat.words)) {
-        cat.words.forEach((w: any) => {
-          list.push({
-            word: w.word,
-            pos: posKey,
-            posLabelVi: cat.labelVi || posKey,
-            cefr: w.cefr || 'B1',
-            ipa: w.ipa || '',
-            vietnamese: w.vietnamese || '',
-            meaningVi: w.vietnamese || '',
-            frequency: w.frequency || 1,
-            contexts: Array.isArray(w.contexts) ? w.contexts : [],
-            mastered: false
-          });
-        });
-      }
-    });
-
-    // Communicative Sentences
-    if (Array.isArray(analysis.sentences)) {
-      analysis.sentences.forEach((s: any) => {
-        list.push({
-          word: s.cleanSentence || s.sentence || '',
-          sentence: s.cleanSentence || s.sentence || '',
-          cleanSentence: s.cleanSentence || s.sentence || '',
-          pos: 'communicative',
-          cefr: 'B1',
-          ipa: '',
-          vietnamese: s.vietnamese || '',
-          meaningVi: s.vietnamese || '',
-          frequency: 1,
-          contexts: [{ text: s.cleanSentence || s.sentence || '' }],
-          highlightPhrase: s.highlightPhrase,
-          usageNote: s.usageNote,
-          tag: s.tag || 'Giao tiếp'
-        });
-      });
-    }
-
-    return list;
-  };
-
-  // Handle Offline Subtitle Analysis from UnifiedInput
 
   // Toggle Mastered Word (Sync with Neon)
   const handleToggleMaster = async (item: VocabItem) => {
@@ -285,10 +210,6 @@ export default function Dashboard() {
 
     // Optimistically update UI
     setMovies((prev) => prev.filter((m) => m.id !== id));
-    if (selectedMovie?.id === id) {
-      setSelectedMovie(null);
-      setCurrentVocab([]);
-    }
 
     try {
       const res = await fetch(`/api/movies/${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -319,8 +240,6 @@ export default function Dashboard() {
         try {
           await fetch('/api/movies', { method: 'DELETE' });
           setMovies([]);
-          setSelectedMovie(null);
-          setCurrentVocab([]);
           showToast('Đã xóa sạch lịch sử quét trên Cloud', 'info');
         } catch (err: any) {
           showToast(`Lỗi: ${err.message}`, 'error');
@@ -504,45 +423,25 @@ export default function Dashboard() {
     });
   };
 
-  // Exports
+  // Exports (Master List on Home View)
   const handleExportAnki = () => {
-    if (activeView === 'master') {
-      if (masterItems.length === 0) {
-        showToast('Master List hiện đang trống, chưa có từ vựng nào để xuất.', 'warning');
-        return;
-      }
-      const content = exportMasterToAnki(masterItems);
-      triggerDownload(content, 'fx_master_known_list_anki.txt', 'text/plain;charset=utf-8');
-      showToast('Đã xuất Anki Master List thành công', 'success');
-    } else {
-      if (currentVocab.length === 0) {
-        showToast('Chưa có từ vựng nào để xuất.', 'warning');
-        return;
-      }
-      const content = exportVocabToAnki(currentVocab, currentMovieTitle);
-      triggerDownload(content, `${currentMovieTitle.replace(/\s+/g, '_')}_anki.txt`, 'text/plain;charset=utf-8');
-      showToast('Đã xuất Anki từ vựng phim thành công', 'success');
+    if (masterItems.length === 0) {
+      showToast('Master List hiện đang trống, chưa có từ vựng nào để xuất.', 'warning');
+      return;
     }
+    const content = exportMasterToAnki(masterItems);
+    triggerDownload(content, 'fx_master_known_list_anki.txt', 'text/plain;charset=utf-8');
+    showToast('Đã xuất Anki Master List thành công', 'success');
   };
 
   const handleExportCsv = () => {
-    if (activeView === 'master') {
-      if (masterItems.length === 0) {
-        showToast('Master List hiện đang trống, chưa có từ vựng nào để xuất.', 'warning');
-        return;
-      }
-      const content = exportMasterToCsv(masterItems);
-      triggerDownload(content, 'fx_master_known_list.csv', 'text/csv;charset=utf-8');
-      showToast('Đã xuất CSV Master List thành công', 'success');
-    } else {
-      if (currentVocab.length === 0) {
-        showToast('Chưa có từ vựng nào để xuất.', 'warning');
-        return;
-      }
-      const content = exportVocabToCsv(currentVocab);
-      triggerDownload(content, `${currentMovieTitle.replace(/\s+/g, '_')}.csv`, 'text/csv;charset=utf-8');
-      showToast('Đã xuất CSV từ vựng phim thành công', 'success');
+    if (masterItems.length === 0) {
+      showToast('Master List hiện đang trống, chưa có từ vựng nào để xuất.', 'warning');
+      return;
     }
+    const content = exportMasterToCsv(masterItems);
+    triggerDownload(content, 'fx_master_known_list.csv', 'text/csv;charset=utf-8');
+    showToast('Đã xuất CSV Master List thành công', 'success');
   };
 
   // Open Flashcards
@@ -552,26 +451,26 @@ export default function Dashboard() {
         showToast('Master List chưa có từ vựng nào để luyện.', 'warning');
         return;
       }
-      const fcItems: VocabItem[] = masterItems.map((m) => ({
-        word: m.text,
-        pos: m.pos || 'noun',
-        cefr: m.cefr || 'B1',
-        ipa: m.ipa || '',
-        vietnamese: m.knownMeanings.join(', '),
-        meaningVi: m.knownMeanings.join(', '),
-        frequency: 1,
-        contexts: m.context ? [{ text: m.context }] : []
-      }));
-      setCurrentVocab(fcItems);
       setIsFlashcardOpen(true);
     } else {
-      if (currentVocab.length === 0) {
-        showToast('Không có từ vựng nào để tạo thẻ ghi nhớ.', 'warning');
-        return;
+      if (movies.length > 0) {
+        router.push(`/movies/${encodeURIComponent(movies[0].id)}`);
+      } else {
+        showToast('Chưa có phim nào để ôn tập Flashcards.', 'warning');
       }
-      setIsFlashcardOpen(true);
     }
   };
+
+  const masterVocabItems: VocabItem[] = masterItems.map((m) => ({
+    word: m.text,
+    pos: m.pos || 'noun',
+    cefr: m.cefr || 'B1',
+    ipa: m.ipa || '',
+    vietnamese: m.knownMeanings.join(', '),
+    meaningVi: m.knownMeanings.join(', '),
+    frequency: 1,
+    contexts: m.context ? [{ text: m.context }] : []
+  }));
 
   return (
     <div className="fx-studio-layout">
@@ -591,40 +490,13 @@ export default function Dashboard() {
       {/* Main Content Area */}
       <main className="fx-container" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
         {activeView === 'studio' ? (
-          <>
-            {/* Cloud Scanned Movies History */}
-            <ScannedHistory
-              movies={movies}
-              selectedMovieId={selectedMovie?.id || null}
-              onSelectMovie={(m) => loadMovieDetails(m)}
-              onDeleteMovie={handleDeleteMovie}
-              onClearAll={handleClearAllMovies}
-            />
-
-            {/* Vocabulary Grid */}
-            {currentVocab.length > 0 ? (
-              <VocabularyGrid
-                movieTitle={currentMovieTitle}
-                items={currentVocab}
-                masteredWords={masteredWords}
-                starredWords={starredWords}
-                onToggleMaster={handleToggleMaster}
-                onToggleStar={handleToggleStar}
-              />
-            ) : movies.length > 0 ? (
-              <div style={{
-                padding: '48px 24px',
-                textAlign: 'center',
-                color: 'var(--fx-text-secondary)',
-                fontSize: '13px',
-                border: '1px dashed var(--fx-border-subtle)',
-                borderRadius: '8px',
-                background: 'var(--fx-bg-surface)'
-              }}>
-                Chọn một phim từ danh sách bên trên để xem toàn bộ từ vựng đã phân tích.
-              </div>
-            ) : null}
-          </>
+          <ScannedHistory
+            movies={movies}
+            selectedMovieId={null}
+            onSelectMovie={(m) => router.push(`/movies/${encodeURIComponent(m.id)}`)}
+            onDeleteMovie={handleDeleteMovie}
+            onClearAll={handleClearAllMovies}
+          />
         ) : (
           /* Master Known List Management View */
           <MasterListView
@@ -643,9 +515,11 @@ export default function Dashboard() {
       {/* 3D Flashcards Modal */}
       <FlashcardModal
         isOpen={isFlashcardOpen}
-        items={currentVocab}
+        items={masterVocabItems}
         onClose={() => setIsFlashcardOpen(false)}
-        onToggleMaster={handleToggleMaster}
+        onToggleMaster={(item) => {
+          handleRemoveMasterWord(item.word);
+        }}
         onToast={showToast}
       />
 
