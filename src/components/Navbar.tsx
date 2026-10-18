@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Keyboard } from 'lucide-react';
 
 interface NavbarProps {
   activeView: 'studio' | 'master';
@@ -13,6 +13,7 @@ interface NavbarProps {
   onOpenFlashcards?: () => void;
   onExportAnki?: () => void;
   onExportCsv?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 export default function Navbar({
@@ -21,7 +22,8 @@ export default function Navbar({
   masterCount,
   theme,
   onToggleTheme,
-  dbConnected = false
+  dbConnected = false,
+  onOpenShortcuts
 }: NavbarProps) {
   return (
     <header className="fx-navbar">
@@ -50,6 +52,20 @@ export default function Navbar({
       </div>
 
       <div className="fx-nav-actions">
+        {/* Keyboard Shortcuts Trigger */}
+        {onOpenShortcuts && (
+          <button
+            type="button"
+            onClick={onOpenShortcuts}
+            className="fx-btn-tesla-ghost-sm"
+            title="Phím tắt bàn phím (?)"
+            aria-label="Phím tắt bàn phím (?)"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px 8px' }}
+          >
+            <Keyboard size={14} />
+          </button>
+        )}
+
         {/* Light / Dark Mode Toggle (Icon only) */}
         <button
           type="button"

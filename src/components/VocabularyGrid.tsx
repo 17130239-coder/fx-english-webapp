@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Volume2, Check, Star, Search } from 'lucide-react';
 import { VocabItem } from '@/lib/types';
 import { speakWord } from '@/lib/speech';
@@ -26,6 +26,69 @@ export default function VocabularyGrid({
   const [cefrFilter, setCefrFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [hideMastered, setHideMastered] = useState<boolean>(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard Shortcuts for Vocabulary Grid
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement;
+      const isInput =
+        active &&
+        (active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          (active as HTMLElement).isContentEditable);
+
+      // Focus search: '/' or 'Ctrl+K' / 'Cmd+K'
+      if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K'))) && !isInput) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (active === searchInputRef.current) {
+          e.preventDefault();
+          searchInputRef.current?.blur();
+          return;
+        }
+      }
+
+      // If user is currently typing in an input, do not intercept single-letter shortcuts
+      if (isInput) return;
+
+      // 'H' / 'h': Toggle hide mastered
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        setHideMastered((prev) => !prev);
+        return;
+      }
+
+      // Number keys 1-6 for POS tabs
+      if (e.key === '1') {
+        e.preventDefault();
+        setActiveTab('all');
+      } else if (e.key === '2') {
+        e.preventDefault();
+        setActiveTab('noun');
+      } else if (e.key === '3') {
+        e.preventDefault();
+        setActiveTab('verb');
+      } else if (e.key === '4') {
+        e.preventDefault();
+        setActiveTab('adjective');
+      } else if (e.key === '5') {
+        e.preventDefault();
+        setActiveTab('adverb');
+      } else if (e.key === '6') {
+        e.preventDefault();
+        setActiveTab('communicative');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Count how many items in this movie are already in master list
   const masteredCountInMovie = useMemo(() => {
@@ -182,18 +245,19 @@ export default function VocabularyGrid({
           {/* POS Tabs */}
           <div className="fx-tabs-group" style={{ borderBottom: 'none', paddingBottom: 0 }}>
             {[
-              { id: 'all', label: 'Tất cả', count: items.length },
-              { id: 'noun', label: 'Danh từ', count: stats.nouns },
-              { id: 'verb', label: 'Động từ', count: stats.verbs },
-              { id: 'adjective', label: 'Tính từ', count: stats.adjs },
-              { id: 'adverb', label: 'Trạng từ', count: stats.advs },
-              { id: 'communicative', label: 'Giao tiếp', count: stats.comms }
+              { id: 'all', label: 'Tất cả', keyNum: '1', count: items.length },
+              { id: 'noun', label: 'Danh từ', keyNum: '2', count: stats.nouns },
+              { id: 'verb', label: 'Động từ', keyNum: '3', count: stats.verbs },
+              { id: 'adjective', label: 'Tính từ', keyNum: '4', count: stats.adjs },
+              { id: 'adverb', label: 'Trạng từ', keyNum: '5', count: stats.advs },
+              { id: 'communicative', label: 'Giao tiếp', keyNum: '6', count: stats.comms }
             ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`fx-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                title={`${tab.label} (phím tắt ${tab.keyNum})`}
               >
                 <span>{tab.label}</span>
                 <span className="fx-nav-pill-count" style={{ marginLeft: '4px' }}>
@@ -210,7 +274,7 @@ export default function VocabularyGrid({
               type="button"
               onClick={() => setHideMastered(!hideMastered)}
               className={`fx-btn-tesla-ghost-sm ${hideMastered ? 'active' : ''}`}
-              title={hideMastered ? 'Đang ẩn từ đã thuộc trong Master List (bấm để hiển thị tất cả)' : 'Bấm để ẩn các từ đã thuộc trong Master List'}
+              title={hideMastered ? 'Đang ẩn từ đã thuộc (phím tắt H để hiện)' : 'Ẩn các từ đã thuộc trong Master List (phím tắt H)'}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -248,10 +312,12 @@ export default function VocabularyGrid({
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <Search size={13} style={{ position: 'absolute', left: '10px', color: 'var(--fx-text-muted)' }} />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm từ hoặc nghĩa..."
+                placeholder="Tìm kiếm... (/)"
+                title="Tìm kiếm từ hoặc nghĩa (phím tắt /)"
                 className="fx-input"
                 style={{ paddingLeft: '30px', width: '200px', height: '34px', fontSize: '12.5px' }}
               />

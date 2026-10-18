@@ -7,6 +7,7 @@ import { ArrowLeft, ExternalLink, Trash2, Layers } from 'lucide-react';
 import Navbar from './Navbar';
 import VocabularyGrid from './VocabularyGrid';
 import FlashcardModal from './FlashcardModal';
+import ShortcutsModal from './ShortcutsModal';
 import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
@@ -30,8 +31,9 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
   const [starredWords, setStarredWords] = useState<Set<string>>(new Set());
   const [dbConnected, setDbConnected] = useState<boolean>(true);
 
-  // Flashcards State
+  // Flashcards & Shortcuts Modal State
   const [isFlashcardOpen, setIsFlashcardOpen] = useState<boolean>(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
 
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -92,6 +94,77 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
       }
     } catch (e) {}
   };
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement;
+      const isInput =
+        active &&
+        (active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          (active as HTMLElement).isContentEditable);
+
+      // '?' toggles shortcuts modal even if not in input
+      if ((e.key === '?' || (e.key === '/' && e.shiftKey)) && !isInput) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (isShortcutsOpen) {
+          e.preventDefault();
+          setIsShortcutsOpen(false);
+          return;
+        }
+        if (isInput) {
+          (active as HTMLElement).blur();
+          return;
+        }
+      }
+
+      // If typing in input or any modal is open, skip single-letter shortcuts
+      if (isInput || isShortcutsOpen || isFlashcardOpen || modalConfig.isOpen) {
+        return;
+      }
+
+      // Theme toggle
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        handleToggleTheme();
+        return;
+      }
+
+      // Open Flashcards
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        if (vocab.length > 0) {
+          setIsFlashcardOpen(true);
+        }
+        return;
+      }
+
+      // Open Original Video
+      if (e.key === 'o' || e.key === 'O') {
+        if (movie?.url) {
+          e.preventDefault();
+          window.open(movie.url, '_blank', 'noopener,noreferrer');
+        }
+        return;
+      }
+
+      // Back to all movies
+      if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        router.push('/');
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isShortcutsOpen, isFlashcardOpen, modalConfig.isOpen, theme, vocab, movie, router]);
 
   // Fetch Movie Details
   const fetchMovie = useCallback(async () => {
@@ -255,6 +328,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         theme={theme}
         onToggleTheme={handleToggleTheme}
         dbConnected={true}
+        onOpenShortcuts={() => setIsShortcutsOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -269,7 +343,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
               href="/"
               className="fx-btn-tesla-ghost-sm"
               style={{ textDecoration: 'none', gap: '6px' }}
-              title="Quay lại danh sách phim"
+              title="Quay lại danh sách phim (phím tắt B)"
             >
               <ArrowLeft size={13} />
               <span>Tất cả phim</span>
@@ -281,7 +355,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
                   type="button"
                   onClick={handleOpenFlashcards}
                   className="fx-btn-tesla-primary-sm"
-                  title="Ôn tập từ vựng phim bằng Flashcards 3D"
+                  title="Ôn tập từ vựng phim bằng Flashcards 3D (phím tắt F)"
                 >
                   <Layers size={13} />
                   <span>Flashcards</span>
@@ -294,7 +368,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
                     rel="noreferrer"
                     className="fx-btn-tesla-ghost-sm"
                     style={{ textDecoration: 'none', gap: '6px' }}
-                    title="Mở video gốc trên trình duyệt"
+                    title="Mở video gốc trên trình duyệt (phím tắt O)"
                   >
                     <ExternalLink size={13} />
                     <span>Xem video gốc</span>
@@ -391,6 +465,12 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         onClose={() => setIsFlashcardOpen(false)}
         onToggleMaster={handleToggleMaster}
         onToast={showToast}
+      />
+
+      {/* Shortcuts Cheat Sheet Modal */}
+      <ShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
       />
 
       {/* Confirmation Modal */}

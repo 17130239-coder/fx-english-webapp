@@ -1860,6 +1860,35 @@ body {
 }
 
 /* --------------------------------------------------------------------------
+   Hardware Keyboard Keycaps (Tesla Minimalist)
+   -------------------------------------------------------------------------- */
+.fx-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  font-family: var(--fx-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fx-text-primary);
+  background: var(--fx-bg-surface-active);
+  border: 1px solid var(--fx-border-strong);
+  border-radius: 4px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  line-height: 1;
+}
+
+html.light .fx-kbd,
+[data-theme="light"] .fx-kbd {
+  background: #E4E4E7;
+  border-color: rgba(0, 0, 0, 0.2);
+  color: #111113;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* --------------------------------------------------------------------------
    14. Light Mode Explicit Overrides & Polish (Tesla Titanium Light)
    -------------------------------------------------------------------------- */
 html.light ::-webkit-scrollbar-track,

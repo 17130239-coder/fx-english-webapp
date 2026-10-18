@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Trash2, Volume2, Search, X } from 'lucide-react';
 import { MasterItem } from '@/lib/types';
 import { speakWord } from '@/lib/speech';
@@ -32,6 +32,72 @@ export default function MasterListView({
   const [activeTab, setActiveTab] = useState<string>('all');
   const [cefrFilter, setCefrFilter] = useState<string>('all');
   const [search, setSearch] = useState<string>('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard Shortcuts for Master List View
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement;
+      const isInput =
+        active &&
+        (active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          (active as HTMLElement).isContentEditable);
+
+      // Focus search: '/' or 'Ctrl+K' / 'Cmd+K'
+      if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K'))) && !isInput) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (active === searchInputRef.current) {
+          e.preventDefault();
+          searchInputRef.current?.blur();
+          return;
+        }
+      }
+
+      // If typing in input, do not intercept single-letter shortcuts
+      if (isInput) return;
+
+      // 'N' or 'A': Add word
+      if (e.key === 'n' || e.key === 'N' || e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        onAddWord();
+        return;
+      }
+
+      // 1-7: POS tabs
+      if (e.key === '1') {
+        e.preventDefault();
+        setActiveTab('all');
+      } else if (e.key === '2') {
+        e.preventDefault();
+        setActiveTab('noun');
+      } else if (e.key === '3') {
+        e.preventDefault();
+        setActiveTab('verb');
+      } else if (e.key === '4') {
+        e.preventDefault();
+        setActiveTab('adj');
+      } else if (e.key === '5') {
+        e.preventDefault();
+        setActiveTab('adv');
+      } else if (e.key === '6') {
+        e.preventDefault();
+        setActiveTab('sentences');
+      } else if (e.key === '7') {
+        e.preventDefault();
+        setActiveTab('polysemy');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onAddWord]);
 
   if (loading) {
     return <MasterListSkeleton count={8} />;
@@ -138,6 +204,7 @@ export default function MasterListView({
             type="button"
             onClick={onAddWord}
             className="fx-btn-tesla-primary-sm"
+            title="Thêm từ mới vào Master List (phím tắt N hoặc A)"
           >
             <Plus size={13} />
             <span>Thêm từ</span>
@@ -192,19 +259,20 @@ export default function MasterListView({
           {/* POS Tabs */}
           <div className="fx-tabs-group" style={{ borderBottom: 'none', paddingBottom: 0 }}>
             {[
-              { id: 'all', label: 'Tất cả', count: tabCounts.all },
-              { id: 'noun', label: 'Danh từ', count: tabCounts.nouns },
-              { id: 'verb', label: 'Động từ', count: tabCounts.verbs },
-              { id: 'adj', label: 'Tính từ', count: tabCounts.adjs },
-              { id: 'adv', label: 'Trạng từ', count: tabCounts.advs },
-              { id: 'sentences', label: 'Câu giao tiếp', count: tabCounts.sentences },
-              { id: 'polysemy', label: 'Đa nghĩa', count: tabCounts.polysemy }
+              { id: 'all', label: 'Tất cả', keyNum: '1', count: tabCounts.all },
+              { id: 'noun', label: 'Danh từ', keyNum: '2', count: tabCounts.nouns },
+              { id: 'verb', label: 'Động từ', keyNum: '3', count: tabCounts.verbs },
+              { id: 'adj', label: 'Tính từ', keyNum: '4', count: tabCounts.adjs },
+              { id: 'adv', label: 'Trạng từ', keyNum: '5', count: tabCounts.advs },
+              { id: 'sentences', label: 'Câu giao tiếp', keyNum: '6', count: tabCounts.sentences },
+              { id: 'polysemy', label: 'Đa nghĩa', keyNum: '7', count: tabCounts.polysemy }
             ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={`fx-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                title={`${tab.label} (phím tắt ${tab.keyNum})`}
               >
                 <span>{tab.label}</span>
                 <span className="fx-nav-pill-count" style={{ marginLeft: '4px' }}>
@@ -233,10 +301,12 @@ export default function MasterListView({
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <Search size={13} style={{ position: 'absolute', left: '10px', color: 'var(--fx-text-muted)' }} />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm kiếm từ đã biết..."
+                placeholder="Tìm kiếm... (/)"
+                title="Tìm kiếm trong danh sách đã thuộc (phím tắt /)"
                 className="fx-input"
                 style={{ paddingLeft: '30px', width: '200px', height: '34px', fontSize: '12.5px' }}
               />

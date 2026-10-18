@@ -6,6 +6,7 @@ import Navbar from './Navbar';
 import ScannedHistory from './ScannedHistory';
 import MasterListView from './MasterListView';
 import FlashcardModal from './FlashcardModal';
+import ShortcutsModal from './ShortcutsModal';
 import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
@@ -60,8 +61,9 @@ export default function Dashboard() {
     } catch (e) {}
   };
 
-  // Flashcards State
+  // Flashcards & Shortcuts Modal State
   const [isFlashcardOpen, setIsFlashcardOpen] = useState<boolean>(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
 
   // Modal State
   const [modalConfig, setModalConfig] = useState<{
@@ -83,6 +85,60 @@ export default function Dashboard() {
     message: '',
     onConfirm: () => {}
   });
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement;
+      const isInput =
+        active &&
+        (active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          (active as HTMLElement).isContentEditable);
+
+      // '?' toggles shortcuts modal even if not in input
+      if ((e.key === '?' || (e.key === '/' && e.shiftKey)) && !isInput) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (isShortcutsOpen) {
+          e.preventDefault();
+          setIsShortcutsOpen(false);
+          return;
+        }
+        if (isInput) {
+          (active as HTMLElement).blur();
+          return;
+        }
+      }
+
+      // If user is currently typing in an input or modal is open, skip single-letter shortcuts
+      if (isInput || isShortcutsOpen || isFlashcardOpen || modalConfig.isOpen) {
+        return;
+      }
+
+      // Theme toggle
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        handleToggleTheme();
+      }
+
+      // Quick view navigation
+      if (e.key === '1') {
+        e.preventDefault();
+        setActiveView('studio');
+      } else if (e.key === '2') {
+        e.preventDefault();
+        setActiveView('master');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isShortcutsOpen, isFlashcardOpen, modalConfig.isOpen, theme]);
 
   // Toasts State
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -508,6 +564,7 @@ export default function Dashboard() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
         dbConnected={dbConnected}
+        onOpenShortcuts={() => setIsShortcutsOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -546,6 +603,12 @@ export default function Dashboard() {
           handleRemoveMasterWord(item.word);
         }}
         onToast={showToast}
+      />
+
+      {/* Shortcuts Cheat Sheet Modal */}
+      <ShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
       />
 
       {/* Reusable Confirmation / Prompt Modal */}

@@ -30,37 +30,10 @@ export default function FlashcardModal({
     }
   }, [isOpen]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        setIsFlipped((f) => !f);
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        handleNext();
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        handlePrev();
-      } else if (e.key >= '1' && e.key <= '4') {
-        handleRate(parseInt(e.key, 10));
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, idx, isFlipped, items]);
-
-  if (!isOpen || items.length === 0) return null;
-
   const current = items[idx];
-  const isSentence = current.sentence || current.isCommunicative;
-  const wordText = current.word || current.sentence || '';
-  const contextSentence = current.contexts?.[0]?.text || '';
+  const isSentence = current?.sentence || current?.isCommunicative;
+  const wordText = current?.word || current?.sentence || '';
+  const contextSentence = current?.contexts?.[0]?.text || '';
 
   const handleNext = () => {
     if (idx < items.length - 1) {
@@ -80,11 +53,47 @@ export default function FlashcardModal({
   };
 
   const handleRate = (rating: number) => {
-    if (rating === 4) {
+    if (rating === 4 && current) {
       onToggleMaster(current);
     }
     handleNext();
   };
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen || items.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        setIsFlipped((f) => !f);
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key >= '1' && e.key <= '4') {
+        handleRate(parseInt(e.key, 10));
+      } else if (e.key === 'r' || e.key === 'R' || e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        if (wordText) speakWord(wordText);
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        if (current) {
+          onToggleMaster(current);
+          onToast(`Đã lưu "${wordText}" vào danh sách đã thuộc`, 'success');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, idx, isFlipped, items, current, wordText]);
+
+  if (!isOpen || items.length === 0) return null;
 
   return (
     <div className="fx-flashcard-modal">
@@ -99,7 +108,7 @@ export default function FlashcardModal({
             {idx + 1} / {items.length}
           </span>
           <span className="fx-fc-tip">
-            Phím tắt: [Space/Enter] Lật thẻ · [1-4] Đánh giá · [←/→] Chuyển thẻ
+            Phím tắt: [Space/Enter] Lật thẻ · [R/V] Phát âm · [M] Đã thuộc · [1-4] SRS · [←/→] Chuyển
           </span>
           <button
             type="button"
