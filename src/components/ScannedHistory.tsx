@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Film, Trash2, ExternalLink, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { ScannedMovie } from '@/lib/types';
+import { ScannedHistorySkeleton } from './Skeletons';
 
 interface ScannedHistoryProps {
   movies: ScannedMovie[];
@@ -10,6 +11,7 @@ interface ScannedHistoryProps {
   onSelectMovie: (movie: ScannedMovie) => void;
   onDeleteMovie: (id: string, e: React.MouseEvent) => void;
   onClearAll: () => void;
+  loading?: boolean;
 }
 
 export default function ScannedHistory({
@@ -17,9 +19,15 @@ export default function ScannedHistory({
   selectedMovieId,
   onSelectMovie,
   onDeleteMovie,
-  onClearAll
+  onClearAll,
+  loading = false
 }: ScannedHistoryProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  // If loading, show skeleton shimmer cards
+  if (loading) {
+    return <ScannedHistorySkeleton count={6} />;
+  }
 
   // Deduplicate movies by URL (or ID if no URL)
   const deduplicatedMovies = React.useMemo(() => {

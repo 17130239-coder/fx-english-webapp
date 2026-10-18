@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Volume2, Search, X } from 'lucide-react';
 import { MasterItem } from '@/lib/types';
 import { speakWord } from '@/lib/speech';
+import { MasterListSkeleton } from './Skeletons';
 
 interface MasterListViewProps {
   items: MasterItem[];
@@ -14,6 +15,7 @@ interface MasterListViewProps {
   onClearAll: () => void;
   onExportAnki: () => void;
   onExportCsv: () => void;
+  loading?: boolean;
 }
 
 export default function MasterListView({
@@ -24,11 +26,16 @@ export default function MasterListView({
   onRemoveMeaning,
   onClearAll,
   onExportAnki,
-  onExportCsv
+  onExportCsv,
+  loading = false
 }: MasterListViewProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [cefrFilter, setCefrFilter] = useState<string>('all');
   const [search, setSearch] = useState<string>('');
+
+  if (loading) {
+    return <MasterListSkeleton count={8} />;
+  }
 
   // CEFR Distribution Calculation
   const cefrStats = useMemo(() => {

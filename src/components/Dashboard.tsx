@@ -19,6 +19,8 @@ export default function Dashboard() {
   const router = useRouter();
   const [activeView, setActiveView] = useState<'studio' | 'master'>('studio');
   const [movies, setMovies] = useState<ScannedMovie[]>([]);
+  const [loadingMovies, setLoadingMovies] = useState<boolean>(true);
+  const [loadingMaster, setLoadingMaster] = useState<boolean>(true);
 
   // Master List & States
   const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
@@ -95,6 +97,7 @@ export default function Dashboard() {
 
   // 1. Fetch Movies from Neon Serverless
   const fetchMovies = useCallback(async () => {
+    setLoadingMovies(true);
     try {
       const res = await fetch('/api/movies', { cache: 'no-store' });
       const data = await res.json();
@@ -107,11 +110,14 @@ export default function Dashboard() {
     } catch (e) {
       console.warn('Could not connect to /api/movies:', e);
       setDbConnected(false);
+    } finally {
+      setLoadingMovies(false);
     }
   }, []);
 
   // 2. Fetch Master List from Neon Serverless
   const fetchMasterList = useCallback(async () => {
+    setLoadingMaster(true);
     try {
       const res = await fetch('/api/master-list', { cache: 'no-store' });
       const data = await res.json();
@@ -125,6 +131,8 @@ export default function Dashboard() {
       }
     } catch (e) {
       console.warn('Could not connect to /api/master-list:', e);
+    } finally {
+      setLoadingMaster(false);
     }
   }, []);
 
@@ -506,6 +514,7 @@ export default function Dashboard() {
             onSelectMovie={(m) => router.push(`/movies/${encodeURIComponent(m.id)}`)}
             onDeleteMovie={handleDeleteMovie}
             onClearAll={handleClearAllMovies}
+            loading={loadingMovies}
           />
         ) : (
           /* Master Known List Management View */
@@ -518,6 +527,7 @@ export default function Dashboard() {
             onClearAll={handleClearAllMaster}
             onExportAnki={handleExportAnki}
             onExportCsv={handleExportCsv}
+            loading={loadingMaster}
           />
         )}
       </main>

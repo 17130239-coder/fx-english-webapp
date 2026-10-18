@@ -12,6 +12,7 @@ import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
 import { extractVocabFromAnalysis } from '@/lib/analyzer';
 import { exportVocabToAnki, exportVocabToCsv, triggerDownload } from '@/lib/export';
+import { MovieDetailSkeleton } from './Skeletons';
 
 interface MovieDetailViewProps {
   movieId: string;
@@ -283,90 +284,80 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
 
       {/* Main Content Area */}
       <main className="fx-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Loading State with Tesla Shimmer Skeleton */}
+        {loading && <MovieDetailSkeleton count={9} />}
+
         {/* Navigation Breadcrumb Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <Link
-            href="/"
-            className="fx-btn-tesla-ghost-sm"
-            style={{ textDecoration: 'none', gap: '6px' }}
-            title="Quay lại danh sách phim"
-          >
-            <ArrowLeft size={13} />
-            <span>Tất cả phim</span>
-          </Link>
+        {!loading && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <Link
+              href="/"
+              className="fx-btn-tesla-ghost-sm"
+              style={{ textDecoration: 'none', gap: '6px' }}
+              title="Quay lại danh sách phim"
+            >
+              <ArrowLeft size={13} />
+              <span>Tất cả phim</span>
+            </Link>
 
-          {movie && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={handleOpenFlashcards}
-                className="fx-btn-tesla-primary-sm"
-                title="Ôn tập từ vựng phim bằng Flashcards 3D"
-              >
-                <Layers size={13} />
-                <span>Flashcards</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportAnki}
-                className="fx-btn-tesla-ghost-sm"
-                title="Xuất bộ thẻ Anki (.txt)"
-              >
-                <Download size={13} />
-                <span>Anki</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                className="fx-btn-tesla-ghost-sm"
-                title="Xuất file CSV"
-              >
-                <FileSpreadsheet size={13} />
-                <span>CSV</span>
-              </button>
-
-              {movie.url && (
-                <a
-                  href={movie.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="fx-btn-tesla-ghost-sm"
-                  style={{ textDecoration: 'none', gap: '6px' }}
-                  title="Mở video gốc trên trình duyệt"
+            {movie && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleOpenFlashcards}
+                  className="fx-btn-tesla-primary-sm"
+                  title="Ôn tập từ vựng phim bằng Flashcards 3D"
                 >
-                  <ExternalLink size={13} />
-                  <span>Xem video gốc</span>
-                </a>
-              )}
+                  <Layers size={13} />
+                  <span>Flashcards</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={handleDeleteMovie}
-                className="fx-btn-tesla-ghost-sm"
-                style={{ color: 'var(--fx-accent-netflix)', gap: '6px' }}
-                title="Xóa phim này khỏi Cloud"
-              >
-                <Trash2 size={13} />
-                <span>Xóa phim</span>
-              </button>
-            </div>
-          )}
-        </div>
+                <button
+                  type="button"
+                  onClick={handleExportAnki}
+                  className="fx-btn-tesla-ghost-sm"
+                  title="Xuất bộ thẻ Anki (.txt)"
+                >
+                  <Download size={13} />
+                  <span>Anki</span>
+                </button>
 
-        {/* Loading State */}
-        {loading && (
-          <div style={{
-            padding: '60px 20px',
-            textAlign: 'center',
-            color: 'var(--fx-text-secondary)',
-            fontSize: '13px',
-            background: 'var(--fx-bg-surface)',
-            border: '1px solid var(--fx-border-subtle)',
-            borderRadius: '8px'
-          }}>
-            Đang tải dữ liệu từ vựng & phân tích phụ đề...
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="fx-btn-tesla-ghost-sm"
+                  title="Xuất file CSV"
+                >
+                  <FileSpreadsheet size={13} />
+                  <span>CSV</span>
+                </button>
+
+                {movie.url && (
+                  <a
+                    href={movie.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="fx-btn-tesla-ghost-sm"
+                    style={{ textDecoration: 'none', gap: '6px' }}
+                    title="Mở video gốc trên trình duyệt"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Xem video gốc</span>
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleDeleteMovie}
+                  className="fx-btn-tesla-ghost-sm"
+                  style={{ color: 'var(--fx-accent-netflix)', gap: '6px' }}
+                  title="Xóa phim này khỏi Cloud"
+                >
+                  <Trash2 size={13} />
+                  <span>Xóa phim</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
