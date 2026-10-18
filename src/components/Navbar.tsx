@@ -32,17 +32,17 @@ export default function Navbar({
             type="button"
             onClick={() => onViewChange('studio')}
             className={`fx-nav-tab ${activeView === 'studio' ? 'active' : ''}`}
-            title="Màn hình phân tích từ vựng & phụ đề"
+            title="Danh sách phim và video đã quét"
           >
-            <span>Phim & Phụ đề</span>
+            <span>Phim</span>
           </button>
           <button
             type="button"
             onClick={() => onViewChange('master')}
             className={`fx-nav-tab ${activeView === 'master' ? 'active' : ''}`}
-            title="Danh sách từ & câu đã biết (Master List)"
+            title="Danh sách từ vựng đã thuộc"
           >
-            <span>Master List</span>
+            <span>Đã thuộc</span>
             <span className="fx-nav-pill-count">{masterCount}</span>
           </button>
         </nav>

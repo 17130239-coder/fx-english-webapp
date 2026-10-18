@@ -120,7 +120,7 @@ export default function MasterListView({
       {/* Top Header Row */}
       <div className="fx-master-header-row">
         <div className="fx-master-title-wrap">
-          <h2 className="fx-master-title">Master Known List</h2>
+          <h2 className="fx-master-title">Từ vựng đã thuộc</h2>
           <p className="fx-master-desc">
             Danh sách toàn bộ từ vựng và câu bạn đã thuộc. Dữ liệu được đồng bộ qua Neon Serverless Postgres và dùng để tự động lọc bỏ từ trùng lặp khi quét phim mới.
           </p>
