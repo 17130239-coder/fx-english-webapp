@@ -54,9 +54,10 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+    const cleanId = decodeURIComponent(id || '').trim();
     await ensureSchema();
-    await sql`DELETE FROM fx_scanned_movies WHERE id = ${id};`;
-    return NextResponse.json({ success: true, id });
+    await sql`DELETE FROM fx_scanned_movies WHERE id = ${cleanId};`;
+    return NextResponse.json({ success: true, id: cleanId });
   } catch (error: any) {
     console.error('Error deleting movie:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

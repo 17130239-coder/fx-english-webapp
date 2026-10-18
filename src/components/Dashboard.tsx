@@ -277,31 +277,31 @@ export default function Dashboard() {
     });
   };
 
-  // Delete Movie
-  const handleDeleteMovie = (id: string, e: React.MouseEvent) => {
+  // Delete Movie (Immediate optimistic deletion + background cloud sync)
+  const handleDeleteMovie = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setModalConfig({
-      isOpen: true,
-      title: 'Xóa phim khỏi Cloud',
-      message: 'Bạn có chắc chắn muốn xóa bộ phim này và kết quả phân tích khỏi Neon DB?',
-      confirmText: 'Xóa',
-      cancelText: 'Hủy',
-      isDanger: true,
-      onConfirm: async () => {
-        setModalConfig((m) => ({ ...m, isOpen: false }));
-        try {
-          await fetch(`/api/movies/${id}`, { method: 'DELETE' });
-          setMovies((prev) => prev.filter((m) => m.id !== id));
-          if (selectedMovie?.id === id) {
-            setSelectedMovie(null);
-            setCurrentVocab([]);
-          }
-          showToast('Đã xóa phim thành công', 'info');
-        } catch (err: any) {
-          showToast(`Lỗi: ${err.message}`, 'error');
-        }
+    e.preventDefault();
+
+    // Optimistically update UI
+    setMovies((prev) => prev.filter((m) => m.id !== id));
+    if (selectedMovie?.id === id) {
+      setSelectedMovie(null);
+      setCurrentVocab([]);
+    }
+
+    try {
+      const res = await fetch(`/api/movies/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Đã xóa phim thành công', 'info');
+      } else {
+        showToast(`Không thể xóa phim: ${data.error || 'Lỗi server'}`, 'error');
+        fetchMovies();
       }
-    });
+    } catch (err: any) {
+      showToast(`Lỗi kết nối khi xóa: ${err.message}`, 'error');
+      fetchMovies();
+    }
   };
 
   // Clear All Movies

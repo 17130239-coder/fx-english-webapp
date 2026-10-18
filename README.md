@@ -85,7 +85,7 @@
 3. **Cấu hình Environment Variables trên Vercel:**
    - Trong mục **Environment Variables**, thêm biến sau:
      - **Name**: `DATABASE_URL`
-     - **Value**: `postgresql://neondb_owner:npg_bP5BYGwKusi2@ep-super-cake-az82uvk1-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require` *(hoặc mật khẩu mới sau khi bạn reset)*
+     - **Value**: `postgresql://username:password@ep-xxxx.region.aws.neon.tech/neondb?sslmode=require`
    - Bấm **Deploy**.
    - Vercel sẽ tự động build và cung cấp đường dẫn production (ví dụ: `https://fx-english-webapp.vercel.app`).
 
@@ -100,7 +100,7 @@
 
 2. **Cấu hình file môi trường `.env.local`:**
    ```env
-   DATABASE_URL=postgresql://neondb_owner:npg_bP5BYGwKusi2@ep-super-cake-az82uvk1-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+   DATABASE_URL=postgresql://username:password@ep-xxxx.region.aws.neon.tech/neondb?sslmode=require
    ```
 
 3. **Chạy máy chủ phát triển:**

@@ -21,7 +21,19 @@ export default function ScannedHistory({
 }: ScannedHistoryProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  if (movies.length === 0) {
+  // Deduplicate movies by URL (or ID if no URL)
+  const deduplicatedMovies = React.useMemo(() => {
+    const map = new Map<string, ScannedMovie>();
+    movies.forEach((m) => {
+      const key = (m.url && m.url.trim()) ? m.url.trim() : m.id;
+      if (!map.has(key)) {
+        map.set(key, m);
+      }
+    });
+    return Array.from(map.values());
+  }, [movies]);
+
+  if (deduplicatedMovies.length === 0) {
     return (
       <section className="fx-history-section">
         <div className="fx-section-header">
@@ -35,14 +47,14 @@ export default function ScannedHistory({
   }
 
   // Display at most 6 movies when collapsed, or all when expanded
-  const displayedMovies = isExpanded ? movies : movies.slice(0, 6);
+  const displayedMovies = isExpanded ? deduplicatedMovies : deduplicatedMovies.slice(0, 6);
 
   return (
     <section className="fx-history-section">
       <div className="fx-section-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <h2>Phim & Video Đã Quét</h2>
-          <span className="fx-nav-pill-count">{movies.length}</span>
+          <span className="fx-nav-pill-count">{deduplicatedMovies.length}</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -115,11 +127,16 @@ export default function ScannedHistory({
 
                   <button
                     type="button"
-                    onClick={(e) => onDeleteMovie(movie.id, e)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onDeleteMovie(movie.id, e);
+                    }}
                     className="fx-btn-del-hist"
                     title="Xóa phim khỏi Cloud"
+                    style={{ padding: '4px 6px', zIndex: 10 }}
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
