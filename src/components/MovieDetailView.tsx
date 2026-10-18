@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Trash2, Layers, Download, FileSpreadsheet } from 'lucide-react';
 import Navbar from './Navbar';
 import VocabularyGrid from './VocabularyGrid';
 import FlashcardModal from './FlashcardModal';
@@ -275,10 +275,6 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
           }
         }}
         masterCount={masterItems.length}
-        dbConnected={dbConnected}
-        onOpenFlashcards={handleOpenFlashcards}
-        onExportAnki={handleExportAnki}
-        onExportCsv={handleExportCsv}
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
@@ -298,7 +294,37 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
           </Link>
 
           {movie && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleOpenFlashcards}
+                className="fx-btn-tesla-primary-sm"
+                title="Ôn tập từ vựng phim bằng Flashcards 3D"
+              >
+                <Layers size={13} />
+                <span>Flashcards</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportAnki}
+                className="fx-btn-tesla-ghost-sm"
+                title="Xuất bộ thẻ Anki (.txt)"
+              >
+                <Download size={13} />
+                <span>Anki</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="fx-btn-tesla-ghost-sm"
+                title="Xuất file CSV"
+              >
+                <FileSpreadsheet size={13} />
+                <span>CSV</span>
+              </button>
+
               {movie.url && (
                 <a
                   href={movie.url}

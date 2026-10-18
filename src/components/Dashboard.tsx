@@ -479,10 +479,6 @@ export default function Dashboard() {
         activeView={activeView}
         onViewChange={(v) => setActiveView(v)}
         masterCount={masterItems.length}
-        dbConnected={dbConnected}
-        onOpenFlashcards={handleOpenFlashcards}
-        onExportAnki={handleExportAnki}
-        onExportCsv={handleExportCsv}
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
