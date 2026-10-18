@@ -102,10 +102,6 @@ export default function MasterListView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onAddWord]);
 
-  if (loading) {
-    return <MasterListSkeleton count={8} />;
-  }
-
   // CEFR Distribution Calculation
   const cefrStats = useMemo(() => {
     let a1 = 0, a2 = 0, b1 = 0, b2 = 0, c1c2 = 0;
@@ -200,6 +196,10 @@ export default function MasterListView({
       return true;
     });
   }, [items, activeTab, cefrFilter, search]);
+
+  if (loading) {
+    return <MasterListSkeleton count={8} />;
+  }
 
   return (
     <div className="fx-master-view">

@@ -24,11 +24,6 @@ export default function ScannedHistory({
 }: ScannedHistoryProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  // If loading, show skeleton shimmer cards
-  if (loading) {
-    return <ScannedHistorySkeleton count={6} />;
-  }
-
   // Deduplicate movies by URL (or ID if no URL)
   const deduplicatedMovies = React.useMemo(() => {
     const map = new Map<string, ScannedMovie>();
@@ -41,6 +36,11 @@ export default function ScannedHistory({
     });
     return Array.from(map.values());
   }, [movies]);
+
+  // If loading, show skeleton shimmer cards
+  if (loading) {
+    return <ScannedHistorySkeleton count={6} />;
+  }
 
   if (deduplicatedMovies.length === 0) {
     return (
