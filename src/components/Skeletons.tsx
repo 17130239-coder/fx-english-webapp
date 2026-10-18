@@ -221,8 +221,6 @@ export function MovieDetailSkeleton({ count = 9 }: { count?: number }) {
         <Skeleton width="110px" height="32px" borderRadius="6px" />
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <Skeleton width="95px" height="32px" borderRadius="6px" />
-          <Skeleton width="60px" height="32px" borderRadius="6px" />
-          <Skeleton width="60px" height="32px" borderRadius="6px" />
           <Skeleton width="120px" height="32px" borderRadius="6px" />
           <Skeleton width="85px" height="32px" borderRadius="6px" />
         </div>

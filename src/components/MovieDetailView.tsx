@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ExternalLink, Trash2, Layers, Download, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Trash2, Layers } from 'lucide-react';
 import Navbar from './Navbar';
 import VocabularyGrid from './VocabularyGrid';
 import FlashcardModal from './FlashcardModal';
@@ -11,7 +11,6 @@ import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
 import { extractVocabFromAnalysis } from '@/lib/analyzer';
-import { exportVocabToAnki, exportVocabToCsv, triggerDownload } from '@/lib/export';
 import { MovieDetailSkeleton } from './Skeletons';
 
 interface MovieDetailViewProps {
@@ -203,30 +202,6 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
     });
   };
 
-  // Export Anki
-  const handleExportAnki = () => {
-    if (vocab.length === 0) {
-      showToast('Không có từ vựng nào để xuất thẻ Anki.', 'warning');
-      return;
-    }
-    const txt = exportVocabToAnki(vocab, movie?.title || 'FX_English');
-    const safeTitle = (movie?.title || 'fx_vocab').replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_');
-    triggerDownload(txt, `${safeTitle}_anki.txt`, 'text/plain;charset=utf-8');
-    showToast(`Đã xuất ${vocab.length} thẻ Anki (.txt) thành công!`, 'success');
-  };
-
-  // Export CSV
-  const handleExportCsv = () => {
-    if (vocab.length === 0) {
-      showToast('Không có từ vựng nào để xuất file CSV.', 'warning');
-      return;
-    }
-    const csv = exportVocabToCsv(vocab);
-    const safeTitle = (movie?.title || 'fx_vocab').replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_');
-    triggerDownload(csv, `${safeTitle}_vocab.csv`, 'text/csv;charset=utf-8');
-    showToast(`Đã xuất ${vocab.length} từ vựng sang file CSV thành công!`, 'success');
-  };
-
   // Open Flashcards
   const handleOpenFlashcards = () => {
     if (vocab.length === 0) {
@@ -310,26 +285,6 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
                 >
                   <Layers size={13} />
                   <span>Flashcards</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportAnki}
-                  className="fx-btn-tesla-ghost-sm"
-                  title="Xuất bộ thẻ Anki (.txt)"
-                >
-                  <Download size={13} />
-                  <span>Anki</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportCsv}
-                  className="fx-btn-tesla-ghost-sm"
-                  title="Xuất file CSV"
-                >
-                  <FileSpreadsheet size={13} />
-                  <span>CSV</span>
                 </button>
 
                 {movie.url && (
