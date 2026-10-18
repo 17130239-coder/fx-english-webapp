@@ -308,38 +308,50 @@ export default function Dashboard() {
     });
   };
 
-  // Delete Movie (Immediate optimistic deletion + cloud sync)
-  const handleDeleteMovie = async (id: string, e: React.MouseEvent) => {
+  // Delete Movie (Confirmed via TeslaModal popup + cloud sync)
+  const handleDeleteMovie = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
 
-    // Find target movie and URL to clean up duplicate entries if any
     const target = movies.find((m) => m.id === id);
-    const targetUrl = target?.url?.trim();
+    const movieTitle = target?.title || 'tập phim này';
 
-    // Optimistically update UI
-    setMovies((prev) => prev.filter((m) => {
-      if (m.id === id) return false;
-      if (targetUrl && m.url && m.url.trim() === targetUrl) return false;
-      return true;
-    }));
+    setModalConfig({
+      isOpen: true,
+      title: 'Xóa phim khỏi Cloud?',
+      message: `Bạn có chắc chắn muốn xóa "${movieTitle}" khỏi cơ sở dữ liệu đám mây? Toàn bộ từ vựng đã phân tích của phim này sẽ bị xóa vĩnh viễn.`,
+      confirmText: 'Xóa phim',
+      cancelText: 'Hủy',
+      isDanger: true,
+      onConfirm: async () => {
+        setModalConfig((m) => ({ ...m, isOpen: false }));
+        const targetUrl = target?.url?.trim();
 
-    try {
-      const res = await fetch(`/api/movies/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast('Đã xóa phim thành công', 'info');
-      } else {
-        showToast(`Không thể xóa phim: ${data.error || 'Lỗi server'}`, 'error');
-        fetchMovies();
+        // Optimistically update UI
+        setMovies((prev) => prev.filter((m) => {
+          if (m.id === id) return false;
+          if (targetUrl && m.url && m.url.trim() === targetUrl) return false;
+          return true;
+        }));
+
+        try {
+          const res = await fetch(`/api/movies/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast(`Đã xóa phim "${movieTitle}" thành công`, 'info');
+          } else {
+            showToast(`Không thể xóa phim: ${data.error || 'Lỗi server'}`, 'error');
+            fetchMovies();
+          }
+        } catch (err: any) {
+          showToast(`Lỗi kết nối khi xóa: ${err.message}`, 'error');
+          fetchMovies();
+        }
       }
-    } catch (err: any) {
-      showToast(`Lỗi kết nối khi xóa: ${err.message}`, 'error');
-      fetchMovies();
-    }
+    });
   };
 
   // Clear All Movies
