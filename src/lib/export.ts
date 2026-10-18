@@ -19,7 +19,47 @@ export function exportVocabToAnki(items: VocabItem[], movieTitle = 'fx_vocab') {
   ];
 
   items.forEach((item) => {
-    if (item.sentence) {
+    // 1. Sentence Pattern Card
+    if (item.pos === 'pattern' || item.isPattern) {
+      const patternText = item.patternTemplate || item.patternFormula || item.word;
+      const example = item.sentence || item.contexts?.[0]?.text || '';
+      const front = `<div style="font-size:12px; text-transform:uppercase; color:#3b82f6; font-weight:700; letter-spacing:0.05em; margin-bottom:6px;">CẤU TRÚC CÂU</div>` +
+        `<div style="font-size:22px; font-weight:bold; color:#0f172a;">${escapeHtml(patternText)}</div>` +
+        (example ? `<div style="font-size:14px; color:#475569; background:#f8fafc; padding:8px 12px; border-left:3px solid #3b82f6; border-radius:4px; font-style:italic; margin-top:10px;">"${escapeHtml(example)}"</div>` : '');
+
+      const back = `<div style="font-size:18px; color:#059669; font-weight:600;">${escapeHtml(item.vietnamese || item.meaningVi || '')}</div>` +
+        (item.usageNote ? `<div style="font-size:13px; color:#64748b; margin-top:8px; font-style:italic;">💡 ${escapeHtml(item.usageNote)}</div>` : '');
+
+      lines.push([front, back, '', '', '', 'FX_English Cấu_Trúc_Câu'].join('\t'));
+      return;
+    }
+
+    // 2. Phrase / Collocation / Idiom Card
+    if (item.pos === 'phrase' || item.isPhrase) {
+      const phraseText = item.word || item.sentence || '';
+      const categoryLabel = item.phraseCategory === 'phrasal_verb' ? 'Cụm động từ'
+        : item.phraseCategory === 'idiom' ? 'Thành ngữ'
+        : item.phraseCategory === 'slang' ? 'Tiếng lóng'
+        : 'Cụm từ';
+      const example = item.contexts?.[0]?.text || item.sentence || '';
+      const escapedExample = escapeHtml(example);
+      const highlightedExample = phraseText
+        ? escapedExample.replace(new RegExp(`\\b(${escapeHtml(phraseText)})\\b`, 'gi'), '<b style="color:#2563eb; text-decoration:underline;">$1</b>')
+        : escapedExample;
+
+      const front = `<div style="font-size:12px; text-transform:uppercase; color:#8b5cf6; font-weight:700; letter-spacing:0.05em; margin-bottom:6px;">${categoryLabel.toUpperCase()}</div>` +
+        `<div style="font-size:22px; font-weight:bold; color:#0f172a;">${escapeHtml(phraseText)}</div>` +
+        (example ? `<div style="font-size:14px; color:#475569; background:#f8fafc; padding:8px 12px; border-left:3px solid #8b5cf6; border-radius:4px; font-style:italic; margin-top:10px;">"${highlightedExample}"</div>` : '');
+
+      const back = `<div style="font-size:18px; color:#059669; font-weight:600;">${escapeHtml(item.vietnamese || item.meaningVi || '')}</div>` +
+        (item.usageNote ? `<div style="font-size:13px; color:#64748b; margin-top:8px; font-style:italic;">💡 ${escapeHtml(item.usageNote)}</div>` : '');
+
+      lines.push([front, back, '', '', '', `FX_English Cụm_Từ`].join('\t'));
+      return;
+    }
+
+    // 3. Communicative Sentence Card
+    if (item.sentence && item.isCommunicative) {
       const front = `<div style="font-size:20px; font-weight:bold; color:#1e293b;">"${escapeHtml(item.sentence)}"</div>` +
         (item.highlightPhrase ? `<div style="font-size:14px; color:#475569; margin-top:6px;">Cốt lõi: <b>${escapeHtml(item.highlightPhrase)}</b></div>` : '');
       const back = `<div style="font-size:18px; color:#0f766e; font-weight:bold;">${escapeHtml(item.vietnamese || '')}</div>` +
@@ -29,6 +69,7 @@ export function exportVocabToAnki(items: VocabItem[], movieTitle = 'fx_vocab') {
       return;
     }
 
+    // 4. Standard Vocabulary Word Card
     const word = item.word || '';
     const ipa = item.ipa ? `<span style="color:#64748b; font-size:14px;">${escapeHtml(item.ipa)}</span>` : '';
     const posLabel = item.posLabelVi || item.pos || '';
@@ -61,23 +102,57 @@ export function exportVocabToCsv(items: VocabItem[]): string {
   if (!items || items.length === 0) return '';
 
   const rows = [
-    ['"Từ vựng / Câu"', '"Loại từ"', '"Cấp độ CEFR"', '"Phiên âm IPA"', '"Nghĩa tiếng Việt"', '"Tần suất"', '"Câu ngữ cảnh trong phim"'].join(',')
+    ['"Từ vựng / Cụm từ / Cấu trúc"', '"Loại"', '"Cấp độ CEFR"', '"Phiên âm IPA"', '"Nghĩa tiếng Việt"', '"Tần suất"', '"Câu ngữ cảnh / Ghi chú"'].join(',')
   ];
 
   items.forEach((item) => {
-    if (item.sentence) {
+    // 1. Pattern
+    if (item.pos === 'pattern' || item.isPattern) {
+      const patternText = item.patternTemplate || item.patternFormula || item.word;
+      const example = item.sentence || item.contexts?.[0]?.text || item.usageNote || '';
+      rows.push([
+        `"${patternText.replace(/"/g, '""')}"`,
+        `"Cấu trúc câu"`,
+        `"${item.cefr || ''}"`,
+        `""`,
+        `"${(item.vietnamese || item.meaningVi || '').replace(/"/g, '""')}"`,
+        item.frequency || 1,
+        `"${example.replace(/"/g, '""')}"`
+      ].join(','));
+      return;
+    }
+
+    // 2. Phrase
+    if (item.pos === 'phrase' || item.isPhrase) {
+      const phraseText = item.word || item.sentence || '';
+      const note = item.usageNote || item.contexts?.[0]?.text || '';
+      rows.push([
+        `"${phraseText.replace(/"/g, '""')}"`,
+        `"Cụm từ"`,
+        `"${item.cefr || ''}"`,
+        `""`,
+        `"${(item.vietnamese || item.meaningVi || '').replace(/"/g, '""')}"`,
+        item.frequency || 1,
+        `"${note.replace(/"/g, '""')}"`
+      ].join(','));
+      return;
+    }
+
+    // 3. Sentence
+    if (item.sentence && item.isCommunicative) {
       rows.push([
         `"${(item.sentence || '').replace(/"/g, '""')}"`,
         `"${(item.tag || 'Câu hay').replace(/"/g, '""')}"`,
         `"Giao tiếp"`,
         `""`,
         `"${(item.vietnamese || '').replace(/"/g, '""')}"`,
-        `1`,
-        `"${(item.sentence || '').replace(/"/g, '""')}"`
+        item.frequency || 1,
+        `"${(item.usageNote || item.sentence || '').replace(/"/g, '""')}"`
       ].join(','));
       return;
     }
 
+    // 4. Word
     rows.push([
       `"${(item.word || '').replace(/"/g, '""')}"`,
       `"${(item.posLabelVi || item.pos || '').replace(/"/g, '""')}"`,
@@ -89,7 +164,7 @@ export function exportVocabToCsv(items: VocabItem[]): string {
     ].join(','));
   });
 
-  return rows.join('\n');
+  return '\uFEFF' + rows.join('\r\n');
 }
 
 export function exportMasterToAnki(items: MasterItem[]): string {
@@ -114,7 +189,7 @@ export function exportMasterToAnki(items: MasterItem[]): string {
 
     const meanings = Array.isArray(item.knownMeanings) ? item.knownMeanings.join(', ') : '';
     const back = `<div style="font-size:18px; color:#059669; font-weight:600;">${escapeHtml(meanings)}</div>` +
-      `<div style="font-size:13px; color:#64748b; margin-top:6px;">Loại từ: <b>${escapeHtml(pos)}</b> (Mastered)</div>`;
+      `<div style="font-size:13px; color:#64748b; margin-top:6px;">Loại: <b>${escapeHtml(pos)}</b> (Mastered)</div>`;
 
     lines.push([front, back, '', '', '', 'FX_English MasterList'].join('\t'));
   });
@@ -141,7 +216,7 @@ export function exportMasterToCsv(items: MasterItem[]): string {
     ].join(','));
   });
 
-  return rows.join('\n');
+  return '\uFEFF' + rows.join('\r\n');
 }
 
 export function triggerDownload(content: string, filename: string, mimeType: string) {
@@ -152,6 +227,8 @@ export function triggerDownload(content: string, filename: string, mimeType: str
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 200);
 }

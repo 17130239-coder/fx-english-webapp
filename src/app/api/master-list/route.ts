@@ -39,6 +39,43 @@ export async function POST(req: Request) {
   try {
     await ensureSchema();
     const body = await req.json();
+
+    // 1. Batch Import Support: { items: Array<{ text: string; type?: string; pos?: string; meanings?: string[] }> }
+    if (Array.isArray(body.items) && body.items.length > 0) {
+      const insertedItems: any[] = [];
+      for (const item of body.items) {
+        if (!item || !item.text || !String(item.text).trim()) continue;
+        const cleanText = String(item.text).trim().toLowerCase();
+        const cleanType = String(item.type || (cleanText.includes(' ') ? 'phrase' : 'word'));
+        const cleanPos = String(item.pos || 'N');
+        const rawM = item.meanings || item.knownMeanings;
+        const meanings = Array.isArray(rawM)
+          ? rawM.map((m: any) => String(m).trim()).filter(Boolean)
+          : ['Đã thuộc'];
+
+        const itemId = `m_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const rows = await sql`
+          INSERT INTO fx_master_known_list (id, text, type, pos, known_meanings, updated_at)
+          VALUES (
+            ${itemId},
+            ${cleanText},
+            ${cleanType},
+            ${cleanPos},
+            ${JSON.stringify(meanings)}::jsonb,
+            NOW()
+          )
+          ON CONFLICT (text) DO UPDATE SET
+            pos = EXCLUDED.pos,
+            known_meanings = EXCLUDED.known_meanings,
+            updated_at = NOW()
+          RETURNING id, text, type, pos, known_meanings as "knownMeanings";
+        `;
+        if (rows.length > 0) insertedItems.push(rows[0]);
+      }
+      return NextResponse.json({ success: true, count: insertedItems.length, items: insertedItems });
+    }
+
+    // 2. Single Item Creation
     const { text, type, pos, meanings, knownMeanings } = body;
 
     if (!text || !String(text).trim()) {

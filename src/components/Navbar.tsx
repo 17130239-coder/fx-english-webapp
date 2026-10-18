@@ -92,6 +92,14 @@ export default function Navbar({
         >
           {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
         </button>
+
+        {/* Minimal Connection Status Dot */}
+        <span
+          className={`fx-neon-dot-wrap ${dbConnected ? '' : 'offline'}`}
+          title={dbConnected ? 'Trực tuyến (Đã kết nối Neon DB)' : 'Ngoại tuyến (Đang dùng bộ nhớ cục bộ PWA)'}
+        >
+          <span className="fx-neon-dot" />
+        </span>
       </div>
     </header>
   );

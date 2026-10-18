@@ -87,7 +87,9 @@ export default function VocabularyGrid({
   const [cefrFilter, setCefrFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [hideMastered, setHideMastered] = useState<boolean>(false);
+  const [displayLimit, setDisplayLimit] = useState<number>(48);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Keyboard Shortcuts for Vocabulary Grid
   useEffect(() => {
@@ -244,6 +246,29 @@ export default function VocabularyGrid({
       return true;
     });
   }, [items, activeTab, cefrFilter, search, hideMastered, masteredWords]);
+
+  // Reset display limit when filter criteria change
+  useEffect(() => {
+    setDisplayLimit(48);
+  }, [activeTab, cefrFilter, search, hideMastered]);
+
+  // Infinite Scroll IntersectionObserver to progressively render cards without jank
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setDisplayLimit((prev) => Math.min(prev + 48, 5000));
+        }
+      },
+      { rootMargin: '400px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filtered.length]);
 
   if (items.length === 0) return null;
 
@@ -405,7 +430,38 @@ export default function VocabularyGrid({
 
       {/* Vocabulary Cards Grid (Tesla 3-Line Hardware Look) */}
       <div className="fx-cards-grid">
-        {filtered.map((item, idx) => {
+        {filtered.length === 0 ? (
+          <div
+            style={{
+              gridColumn: '1 / -1',
+              padding: '50px 20px',
+              textAlign: 'center',
+              background: 'var(--fx-bg-surface)',
+              border: '1px solid var(--fx-border-subtle)',
+              borderRadius: '8px'
+            }}
+          >
+            <p style={{ color: 'var(--fx-text-secondary)', fontSize: '13.5px', marginBottom: '14px' }}>
+              Không tìm thấy từ vựng, cụm từ hoặc cấu trúc nào phù hợp với bộ lọc hiện tại.
+            </p>
+            {(search || cefrFilter !== 'all' || activeTab !== 'all' || hideMastered) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setCefrFilter('all');
+                  setActiveTab('all');
+                  setHideMastered(false);
+                }}
+                className="fx-btn-tesla-ghost-sm"
+                style={{ margin: '0 auto', fontSize: '12px' }}
+              >
+                Đặt lại tất cả bộ lọc
+              </button>
+            )}
+          </div>
+        ) : (
+          filtered.slice(0, displayLimit).map((item, idx) => {
           const key = (item.word || item.sentence || '').toLowerCase();
           const isMastered = masteredWords.has(key);
           const isStarred = starredWords.has(key);
@@ -612,8 +668,31 @@ export default function VocabularyGrid({
               )}
             </div>
           );
-        })}
+        }))}
       </div>
+
+      {/* Progressive Infinite Load Sentinel */}
+      {filtered.length > displayLimit && (
+        <div
+          ref={sentinelRef}
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '24px 0 12px',
+            gap: '12px'
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setDisplayLimit((prev) => Math.min(prev + 48, filtered.length))}
+            className="fx-btn-tesla-ghost-sm"
+            style={{ fontSize: '12px', padding: '6px 16px' }}
+          >
+            Đang hiển thị {Math.min(displayLimit, filtered.length)} / {filtered.length} mục · Tải thêm
+          </button>
+        </div>
+      )}
     </div>
   );
 }

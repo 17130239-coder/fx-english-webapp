@@ -1,3 +1,42 @@
+export type PartOfSpeech =
+  | 'noun'
+  | 'verb'
+  | 'adjective'
+  | 'adverb'
+  | 'phrase'
+  | 'pattern'
+  | 'communicative'
+  | 'highlight'
+  | 'all';
+
+export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2' | 'all';
+
+export type PhraseCategory =
+  | 'phrasal_verb'
+  | 'collocation'
+  | 'idiom'
+  | 'slang'
+  | string;
+
+export type PlatformType = 'youtube' | 'netflix' | 'file';
+
+export const POS_LABELS_VI: Record<string, string> = {
+  noun: 'Danh từ',
+  verb: 'Động từ',
+  adjective: 'Tính từ',
+  adverb: 'Trạng từ',
+  phrase: 'Cụm từ',
+  pattern: 'Cấu trúc câu',
+  sentences: 'Câu giao tiếp',
+  all: 'Tất cả'
+};
+
+export function getPosLabelVi(pos: string): string {
+  if (!pos) return 'Từ vựng';
+  const clean = pos.toLowerCase().trim();
+  return POS_LABELS_VI[clean] || pos;
+}
+
 export interface VocabItem {
   word: string;
   lemma?: string;
@@ -15,7 +54,7 @@ export interface VocabItem {
   isCommunicative?: boolean;
   isPhrase?: boolean;
   isPattern?: boolean;
-  phraseCategory?: 'phrasal_verb' | 'idiom' | 'collocation' | 'slang' | string;
+  phraseCategory?: PhraseCategory;
   patternTemplate?: string;
   patternFormula?: string;
   highlightPhrase?: string;
@@ -28,7 +67,7 @@ export interface VocabItem {
 export interface ScannedMovie {
   id: string;
   title: string;
-  platform: 'youtube' | 'netflix' | 'file';
+  platform: PlatformType;
   url: string;
   timestamp: number;
   dateFormatted: string;

@@ -11,7 +11,7 @@ import ShortcutsModal from './ShortcutsModal';
 import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
-import { extractVocabFromAnalysis } from '@/lib/analyzer';
+import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 import { MovieDetailSkeleton } from './Skeletons';
 
 interface MovieDetailViewProps {

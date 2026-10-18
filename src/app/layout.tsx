@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 
@@ -8,13 +8,29 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   variable: '--fx-font-main',
 });
 
+export const viewport: Viewport = {
+  themeColor: '#0A0A0B',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
+
 export const metadata: Metadata = {
   title: 'FX English - Subtitle & Vocabulary Studio',
   description: 'FX English Subtitle & Vocabulary Studio. Synchronized with Neon Serverless Postgres.',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'FX English',
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
       { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon512.png', sizes: '512x512', type: 'image/png' },
     ],
     apple: '/apple-touch-icon.png',
   },
@@ -31,6 +47,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -48,6 +65,15 @@ export default function RootLayout({
                   document.documentElement.setAttribute('data-theme', 'dark');
                 }
               } catch (e) {}
+
+              // PWA Service Worker Registration
+              if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                    console.warn('[PWA] SW register notice:', err);
+                  });
+                });
+              }
             `,
           }}
         />

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, Trash2, Volume2, Search, X } from 'lucide-react';
+import { Plus, Trash2, Volume2, Search, X, Upload } from 'lucide-react';
 import { MasterItem } from '@/lib/types';
 import { speakWord } from '@/lib/speech';
 import { MasterListSkeleton } from './Skeletons';
@@ -15,6 +15,7 @@ interface MasterListViewProps {
   onClearAll: () => void;
   onExportAnki: () => void;
   onExportCsv: () => void;
+  onImportItems?: (items: Array<{ text: string; meanings?: string[]; pos?: string; type?: string }>) => void;
   loading?: boolean;
 }
 
@@ -27,12 +28,67 @@ export default function MasterListView({
   onClearAll,
   onExportAnki,
   onExportCsv,
+  onImportItems,
   loading = false
 }: MasterListViewProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [cefrFilter, setCefrFilter] = useState<string>('all');
   const [search, setSearch] = useState<string>('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (!content) return;
+
+      const lines = content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      const parsed: Array<{ text: string; meanings?: string[]; pos?: string; type?: string }> = [];
+
+      lines.forEach((line, index) => {
+        if (index === 0 && (line.startsWith('Text,') || line.startsWith('"Từ vựng') || line.startsWith('Word,'))) return;
+        if (line.startsWith('#')) return;
+
+        if (line.includes('\t')) {
+          const parts = line.split('\t');
+          const cleanText = parts[0].replace(/<[^>]+>/g, '').trim();
+          const cleanMeaning = parts[1] ? parts[1].replace(/<[^>]+>/g, '').trim() : '';
+          if (cleanText) {
+            parsed.push({
+              text: cleanText,
+              meanings: cleanMeaning ? [cleanMeaning] : ['Đã thuộc']
+            });
+          }
+          return;
+        }
+
+        if (line.includes(',')) {
+          const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+          const rawFirst = matches?.[0] ? matches[0].replace(/^"|"$/g, '').trim() : '';
+          const rawSecond = matches?.[1] ? matches[1].replace(/^"|"$/g, '').trim() : '';
+          if (rawFirst) {
+            parsed.push({
+              text: rawFirst,
+              meanings: rawSecond ? [rawSecond] : ['Đã thuộc']
+            });
+            return;
+          }
+        }
+
+        parsed.push({
+          text: line,
+          meanings: ['Đã thuộc']
+        });
+      });
+
+      if (parsed.length > 0 && onImportItems) {
+        onImportItems(parsed);
+      }
+    };
+    reader.readAsText(file);
+  };
 
   // Keyboard Shortcuts for Master List View
   useEffect(() => {
@@ -213,6 +269,18 @@ export default function MasterListView({
         </div>
 
         <div className="fx-master-actions">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".csv,.txt"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleImportFile(e.target.files[0]);
+                e.target.value = '';
+              }
+            }}
+          />
           <button
             type="button"
             onClick={onAddWord}
@@ -222,6 +290,17 @@ export default function MasterListView({
             <Plus size={13} />
             <span>Thêm từ</span>
           </button>
+          {onImportItems && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="fx-btn-tesla-ghost-sm"
+              title="Nhập danh sách từ vựng từ file CSV hoặc TXT"
+            >
+              <Upload size={13} />
+              <span>Nhập CSV</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onExportAnki}

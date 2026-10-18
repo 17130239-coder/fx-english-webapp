@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Volume2, RotateCw, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { VocabItem } from '@/lib/types';
 import { speakWord } from '@/lib/speech';
@@ -23,6 +23,39 @@ export default function FlashcardModal({
   const [idx, setIdx] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
+  // Mobile Touch Gestures (Swipe Left: Next, Swipe Right: Prev)
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartX.current;
+    const deltaY = touch.clientY - touchStartY.current;
+
+    // Minimum swipe threshold: 45px horizontally and dominant horizontal motion
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      if (deltaX < 0) {
+        // Swipe Left -> Next
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+        handleNext();
+      } else {
+        // Swipe Right -> Prev
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+        handlePrev();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   useEffect(() => {
     if (isOpen) {
       setIdx(0);
@@ -31,9 +64,16 @@ export default function FlashcardModal({
   }, [isOpen]);
 
   const current = items[idx];
-  const isSentence = current?.sentence || current?.isCommunicative;
-  const wordText = current?.word || current?.sentence || '';
-  const contextSentence = current?.contexts?.[0]?.text || '';
+  const isPattern = Boolean(current?.isPattern || current?.pos === 'pattern');
+  const isPhrase = Boolean(current?.isPhrase || current?.pos === 'phrase');
+  const isSentence = Boolean(current?.sentence || current?.isCommunicative);
+
+  const displayPosLabel = isPattern ? 'CẤU TRÚC CÂU'
+    : isPhrase ? (current?.phraseCategory === 'phrasal_verb' ? 'CỤM ĐỘNG TỪ' : current?.phraseCategory === 'idiom' ? 'THÀNH NGỮ' : 'CỤM TỪ')
+    : (current?.posLabelVi || current?.pos || 'TỪ VỰNG').toUpperCase();
+
+  const wordText = current?.patternTemplate || current?.patternFormula || current?.word || current?.sentence || '';
+  const contextSentence = current?.contexts?.[0]?.text || current?.sentence || '';
 
   const handleNext = () => {
     if (idx < items.length - 1) {
@@ -53,6 +93,7 @@ export default function FlashcardModal({
   };
 
   const handleRate = (rating: number) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
     if (rating === 4 && current) {
       onToggleMaster(current);
     }
@@ -120,17 +161,26 @@ export default function FlashcardModal({
           </button>
         </div>
 
-        {/* 3D Scene */}
-        <div className="fx-fc-scene" onClick={() => setIsFlipped(!isFlipped)}>
+        {/* 3D Scene with Touch Swipe Support */}
+        <div
+          className="fx-fc-scene"
+          onClick={() => {
+            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(8);
+            setIsFlipped(!isFlipped);
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <div className={`fx-fc-card ${isFlipped ? 'is-flipped' : ''}`}>
             {/* FRONT FACE */}
             <div className="fx-fc-face fx-fc-front">
               <div className="fx-fc-meta-specs">
-                <span>{current.posLabelVi || current.pos || 'TỪ VỰNG'}</span>
+                <span>{displayPosLabel}</span>
                 {current.cefr && <span>· {current.cefr}</span>}
+                {current.frequency && <span>· {current.frequency}x</span>}
               </div>
 
-              <div className="fx-fc-word" style={{ fontSize: isSentence ? '20px' : '30px' }}>
+              <div className="fx-fc-word" style={{ fontSize: isSentence || isPattern ? '20px' : '30px' }}>
                 {wordText}
               </div>
 
@@ -169,6 +219,12 @@ export default function FlashcardModal({
               <div className="fx-fc-trans">
                 {current.vietnamese || current.meaningVi || 'Đang cập nhật...'}
               </div>
+
+              {current.usageNote && (
+                <div className="fx-fc-note-box" style={{ fontSize: '13px', color: 'var(--fx-text-secondary)', marginTop: '8px', fontStyle: 'italic' }}>
+                  💡 {current.usageNote}
+                </div>
+              )}
 
               {contextSentence && (
                 <div className="fx-fc-context-box" style={{ marginTop: '10px' }}>

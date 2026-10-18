@@ -521,6 +521,27 @@ export default function Dashboard() {
     showToast('Đã xuất CSV Master List thành công', 'success');
   };
 
+  const handleImportMasterItems = async (items: Array<{ text: string; meanings?: string[]; pos?: string; type?: string }>) => {
+    if (!items || items.length === 0) return;
+    try {
+      showToast(`Đang nhập ${items.length} từ vào Master List...`, 'info');
+      const res = await fetch('/api/master-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Đã nhập thành công ${data.count || items.length} từ vào Master List`, 'success');
+        fetchMasterList();
+      } else {
+        showToast(`Lỗi nhập dữ liệu: ${data.error || 'Thao tác thất bại'}`, 'error');
+      }
+    } catch (err: any) {
+      showToast(`Lỗi nhập dữ liệu: ${err.message || 'Lỗi mạng'}`, 'error');
+    }
+  };
+
   // Open Flashcards
   const handleOpenFlashcards = () => {
     if (activeView === 'master') {
@@ -591,6 +612,7 @@ export default function Dashboard() {
             onClearAll={handleClearAllMaster}
             onExportAnki={handleExportAnki}
             onExportCsv={handleExportCsv}
+            onImportItems={handleImportMasterItems}
             loading={loadingMaster}
           />
         )}
