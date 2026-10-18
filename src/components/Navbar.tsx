@@ -28,7 +28,22 @@ export default function Navbar({
   return (
     <header className="fx-navbar">
       <div className="fx-nav-brand-group">
-        <h1 className="fx-nav-title">FX English</h1>
+        <button
+          type="button"
+          onClick={() => onViewChange('studio')}
+          className="fx-nav-brand-btn"
+          title="FX English Studio"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icon.svg"
+            alt="FX English Logo"
+            width={24}
+            height={24}
+            className="fx-nav-brand-logo"
+          />
+          <span className="fx-nav-title">FX English</span>
+        </button>
 
         <nav className="fx-nav-switcher">
           <button

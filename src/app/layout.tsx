@@ -9,8 +9,15 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'FX English',
+  title: 'FX English - Subtitle & Vocabulary Studio',
   description: 'FX English Subtitle & Vocabulary Studio. Synchronized with Neon Serverless Postgres.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({
@@ -21,6 +28,9 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning className={`dark ${plusJakartaSans.variable}`}>
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
