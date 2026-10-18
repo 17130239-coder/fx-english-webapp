@@ -94,8 +94,9 @@ export default function ScannedHistory({
       <div className="fx-history-grid">
         {displayedMovies.map((movie) => {
           const isSelected = selectedMovieId === movie.id;
-          const isNetflix = movie.platform === 'netflix';
-          const isYouTube = movie.platform === 'youtube';
+          const isNetflix = movie.platform === 'netflix' || Boolean(movie.url && movie.url.includes('netflix.com'));
+          const isYouTube = !isNetflix && (movie.platform === 'youtube' || Boolean(movie.url && (movie.url.includes('youtube.com') || movie.url.includes('youtu.be'))));
+          const platformLabel = isNetflix ? 'netflix' : isYouTube ? 'youtube' : (movie.platform || 'file');
 
           return (
             <div
@@ -116,7 +117,7 @@ export default function ScannedHistory({
                         : {}
                     }
                   />
-                  <span className="fx-platform-tag">{movie.platform}</span>
+                  <span className="fx-platform-tag">{platformLabel}</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

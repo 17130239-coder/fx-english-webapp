@@ -51,6 +51,13 @@ export async function POST(req: Request) {
     const finalTimestamp = timestamp || Date.now();
     const finalDate = dateFormatted || new Date(finalTimestamp).toLocaleDateString('vi-VN');
 
+    let finalPlatform = platform || 'file';
+    if (url && (url.includes('netflix.com') || url.includes('/watch/'))) {
+      finalPlatform = 'netflix';
+    } else if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+      finalPlatform = 'youtube';
+    }
+
     const rows = await sql`
       INSERT INTO fx_scanned_movies (
         id, title, platform, url, timestamp, date_formatted,
@@ -60,7 +67,7 @@ export async function POST(req: Request) {
       VALUES (
         ${newId},
         ${title || 'Phim mới'},
-        ${platform || 'file'},
+        ${finalPlatform},
         ${url || ''},
         ${finalTimestamp},
         ${finalDate},

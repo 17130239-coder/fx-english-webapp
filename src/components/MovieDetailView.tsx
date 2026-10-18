@@ -259,8 +259,9 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
     });
   };
 
-  const isNetflix = movie?.platform === 'netflix';
-  const isYouTube = movie?.platform === 'youtube';
+  const isNetflix = movie?.platform === 'netflix' || Boolean(movie?.url && movie.url.includes('netflix.com'));
+  const isYouTube = !isNetflix && (movie?.platform === 'youtube' || Boolean(movie?.url && (movie.url.includes('youtube.com') || movie.url.includes('youtu.be'))));
+  const platformLabel = isNetflix ? 'netflix' : isYouTube ? 'youtube' : (movie?.platform || 'file');
 
   return (
     <div className="fx-studio-layout">
@@ -410,7 +411,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
                   }`}
                   style={!isNetflix && !isYouTube ? { background: '#A1A1AA' } : {}}
                 />
-                <span className="fx-platform-tag">{movie.platform}</span>
+                <span className="fx-platform-tag">{platformLabel}</span>
                 <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
                 <span style={{ fontSize: '11px', color: 'var(--fx-text-secondary)' }}>
                   {movie.dateFormatted || 'Đã quét'}
