@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Film, Trash2, ExternalLink, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { ScannedMovie } from '@/lib/types';
 import { ScannedHistorySkeleton } from './Skeletons';
 
@@ -12,18 +12,6 @@ interface ScannedHistoryProps {
   onDeleteMovie: (id: string, e: React.MouseEvent) => void;
   onClearAll: () => void;
   loading?: boolean;
-}
-
-function formatDisplayUrl(url?: string): string {
-  if (!url) return '';
-  try {
-    const parsed = new URL(url);
-    const domain = parsed.hostname.replace(/^www\./, '');
-    const pathname = parsed.pathname.length > 25 ? parsed.pathname.slice(0, 25) + '...' : parsed.pathname;
-    return `${domain}${pathname === '/' ? '' : pathname}`;
-  } catch (e) {
-    return url.length > 30 ? url.slice(0, 30) + '...' : url;
-  }
 }
 
 export default function ScannedHistory({
@@ -163,36 +151,11 @@ export default function ScannedHistory({
                 </div>
               </div>
 
-              {/* Title & Link */}
+              {/* Title */}
               <div className="fx-history-title-row-card">
                 <h3 className="fx-history-title" title={movie.title}>
                   {movie.title}
                 </h3>
-                {movie.url && (
-                  <a
-                    href={movie.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="fx-banner-link"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '12px',
-                      color: 'var(--fx-text-muted)',
-                      marginTop: '4px',
-                      width: '100%',
-                      minWidth: 0,
-                      overflow: 'hidden'
-                    }}
-                  >
-                    <ExternalLink size={11} style={{ flexShrink: 0 }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>
-                      {formatDisplayUrl(movie.url)}
-                    </span>
-                  </a>
-                )}
               </div>
 
               {/* Stats Block */}
