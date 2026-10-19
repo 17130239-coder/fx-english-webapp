@@ -5,24 +5,27 @@ import { useRouter } from 'next/navigation';
 import Navbar from './Navbar';
 import ScannedHistory from './ScannedHistory';
 import MasterListView from './MasterListView';
+import StarredListView from './StarredListView';
 import FlashcardModal from './FlashcardModal';
 import ShortcutsModal from './ShortcutsModal';
 import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
-import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
+import { ScannedMovie, VocabItem, MasterItem, StarredItem } from '@/lib/types';
 import { triggerDownload } from '@/lib/export';
 import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [activeView, setActiveView] = useState<'studio' | 'master'>('studio');
+  const [activeView, setActiveView] = useState<'studio' | 'master' | 'starred'>('studio');
   const [movies, setMovies] = useState<ScannedMovie[]>([]);
   const [loadingMovies, setLoadingMovies] = useState<boolean>(true);
   const [loadingMaster, setLoadingMaster] = useState<boolean>(true);
+  const [loadingStarred, setLoadingStarred] = useState<boolean>(true);
 
   // Master List & States
   const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
   const [masteredWords, setMasteredWords] = useState<Set<string>>(new Set());
+  const [starredItems, setStarredItems] = useState<StarredItem[]>([]);
   const [starredWords, setStarredWords] = useState<Set<string>>(new Set());
   const [dbConnected, setDbConnected] = useState<boolean>(false);
 
@@ -193,6 +196,29 @@ export default function Dashboard() {
     }
   }, []);
 
+  // 3. Fetch Starred List from Neon Serverless
+  const fetchStarredList = useCallback(async () => {
+    try {
+      const res = await fetch('/api/starred');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.items)) {
+        setStarredItems(data.items);
+        const set = new Set<string>();
+        data.items.forEach((item: StarredItem) => {
+          if (item && item.text) set.add(item.text.toLowerCase());
+        });
+        setStarredWords(set);
+        try {
+          localStorage.setItem('fx_cached_starred', JSON.stringify(data.items));
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.warn('Could not connect to /api/starred:', e);
+    } finally {
+      setLoadingStarred(false);
+    }
+  }, []);
+
   useEffect(() => {
     // 1. Instant Cache Hydration (SWR Pattern for 0ms First Paint)
     try {
@@ -219,6 +245,20 @@ export default function Dashboard() {
           setLoadingMaster(false);
         }
       }
+
+      const cachedStarredRaw = localStorage.getItem('fx_cached_starred');
+      if (cachedStarredRaw) {
+        const parsed = JSON.parse(cachedStarredRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setStarredItems(parsed);
+          const set = new Set<string>();
+          parsed.forEach((item: StarredItem) => {
+            if (item && item.text) set.add(item.text.toLowerCase());
+          });
+          setStarredWords(set);
+          setLoadingStarred(false);
+        }
+      }
     } catch (e) {
       console.warn('Local cache hydration error:', e);
     }
@@ -227,13 +267,16 @@ export default function Dashboard() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('view') === 'master') {
         setActiveView('master');
+      } else if (params.get('view') === 'starred') {
+        setActiveView('starred');
       }
     }
 
     // 2. Silent Background Revalidation
     fetchMovies();
     fetchMasterList();
-  }, [fetchMovies, fetchMasterList]);
+    fetchStarredList();
+  }, [fetchMovies, fetchMasterList, fetchStarredList]);
 
 
   // Toggle Mastered Word (Optimistic Update with instant 0ms UI response & silent rollback, zero popup)
@@ -318,14 +361,144 @@ export default function Dashboard() {
     }
   };
 
-  // Toggle Star
-  const handleToggleStar = (word: string) => {
+  // Toggle Starred Word (Optimistic Update 0ms, syncs to Neon DB, zero popup)
+  const handleToggleStar = async (word: string, item?: VocabItem) => {
     const clean = word.trim().toLowerCase();
+    if (!clean) return;
+
+    const wasStarred = starredWords.has(clean);
+    const prevStarredWords = new Set(starredWords);
+    const prevStarredItems = [...starredItems];
+
+    const meaning = item?.vietnamese || item?.meaningVi || '';
+    const optimisticNewItem: StarredItem = {
+      id: `star_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      text: clean,
+      type: item?.sentence ? 'sentence' : (clean.includes(' ') ? 'phrase' : 'word'),
+      pos: item?.posLabelVi || item?.pos || 'N',
+      cefr: item?.cefr || '',
+      ipa: item?.ipa || '',
+      vietnamese: meaning,
+      meaningVi: meaning,
+      context: item?.contexts?.[0]?.text || item?.sentence || ''
+    };
+
+    // 1. Instant 0ms Optimistic UI Update
+    if (wasStarred) {
+      setStarredWords((prev) => {
+        const next = new Set(prev);
+        next.delete(clean);
+        return next;
+      });
+      setStarredItems((prev) => {
+        const next = prev.filter((m) => m.text.toLowerCase() !== clean);
+        try {
+          localStorage.setItem('fx_cached_starred', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    } else {
+      setStarredWords((prev) => new Set(prev).add(clean));
+      setStarredItems((prev) => {
+        const next = [optimisticNewItem, ...prev.filter((m) => m.text.toLowerCase() !== clean)];
+        try {
+          localStorage.setItem('fx_cached_starred', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    }
+
+    // 2. Background sync to Neon Database (Silent, NO popup)
+    try {
+      let res: Response;
+      if (wasStarred) {
+        res = await fetch(`/api/starred?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
+      } else {
+        res = await fetch('/api/starred', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: clean,
+            type: optimisticNewItem.type,
+            pos: optimisticNewItem.pos,
+            cefr: optimisticNewItem.cefr,
+            ipa: optimisticNewItem.ipa,
+            context: optimisticNewItem.context,
+            vietnamese: optimisticNewItem.vietnamese
+          })
+        });
+      }
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Server sync error');
+      }
+    } catch (e: any) {
+      console.error('Error syncing starred word, rolling back:', e);
+      setStarredWords(prevStarredWords);
+      setStarredItems(prevStarredItems);
+      try {
+        localStorage.setItem('fx_cached_starred', JSON.stringify(prevStarredItems));
+      } catch (err) {}
+      showToast(`Không thể đồng bộ dấu sao cho "${clean}", đã khôi phục trạng thái.`, 'error');
+    }
+  };
+
+  // Toggle star directly from StarredListView
+  const handleToggleStarFromList = async (item: StarredItem) => {
+    const clean = item.text.trim().toLowerCase();
+    const prevItems = [...starredItems];
+    const prevWords = new Set(starredWords);
+
     setStarredWords((prev) => {
       const next = new Set(prev);
-      if (next.has(clean)) next.delete(clean);
-      else next.add(clean);
+      next.delete(clean);
       return next;
+    });
+    setStarredItems((prev) => {
+      const next = prev.filter((s) => s.text.toLowerCase() !== clean);
+      try {
+        localStorage.setItem('fx_cached_starred', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    try {
+      const res = await fetch(`/api/starred?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+    } catch (e) {
+      setStarredWords(prevWords);
+      setStarredItems(prevItems);
+      try {
+        localStorage.setItem('fx_cached_starred', JSON.stringify(prevItems));
+      } catch (err) {}
+      showToast(`Không thể đồng bộ bỏ sao cho "${clean}"`, 'error');
+    }
+  };
+
+  // Clear All Starred Words
+  const handleClearAllStarred = () => {
+    setModalConfig({
+      isOpen: true,
+      title: 'Xóa toàn bộ từ đã lưu',
+      message: 'Bạn có chắc chắn muốn xóa TOÀN BỘ từ vựng đã gắn sao khỏi cơ sở dữ liệu? Thao tác này không thể hoàn tác.',
+      confirmText: 'Xóa toàn bộ',
+      cancelText: 'Hủy',
+      isDanger: true,
+      onConfirm: async () => {
+        setModalConfig((m) => ({ ...m, isOpen: false }));
+        try {
+          await fetch('/api/starred', { method: 'DELETE' });
+          setStarredItems([]);
+          setStarredWords(new Set());
+          try {
+            localStorage.removeItem('fx_cached_starred');
+          } catch (e) {}
+          showToast('Đã xóa sạch danh sách từ đã lưu', 'info');
+        } catch (err: any) {
+          showToast(`Lỗi: ${err.message}`, 'error');
+        }
+      }
     });
   };
 
@@ -670,6 +843,12 @@ export default function Dashboard() {
         return;
       }
       setIsFlashcardOpen(true);
+    } else if (activeView === 'starred') {
+      if (starredItems.length === 0) {
+        showToast('Chưa có từ vựng nào được gắn sao để luyện Flashcards.', 'warning');
+        return;
+      }
+      setIsFlashcardOpen(true);
     } else {
       if (movies.length > 0) {
         router.push(`/movies/${encodeURIComponent(movies[0].id)}`);
@@ -697,6 +876,22 @@ export default function Dashboard() {
       };
     });
 
+  const starredVocabItems: VocabItem[] = (starredItems || [])
+    .filter((s): s is StarredItem => Boolean(s && s.text))
+    .map((s) => {
+      const meaning = s.vietnamese || s.meaningVi || (Array.isArray(s.knownMeanings) ? s.knownMeanings.join(', ') : '');
+      return {
+        word: s.text,
+        pos: s.pos || 'noun',
+        cefr: s.cefr || 'B1',
+        ipa: s.ipa || '',
+        vietnamese: meaning,
+        meaningVi: meaning,
+        frequency: 1,
+        contexts: s.context ? [{ text: s.context }] : []
+      };
+    });
+
   return (
     <div className="fx-studio-layout">
       {/* Top Navbar */}
@@ -704,6 +899,7 @@ export default function Dashboard() {
         activeView={activeView}
         onViewChange={(v) => setActiveView(v)}
         masterCount={masterItems.length}
+        starredCount={starredItems.length}
         theme={theme}
         onToggleTheme={handleToggleTheme}
         dbConnected={dbConnected}
@@ -724,7 +920,7 @@ export default function Dashboard() {
               onClearAll={handleClearAllMovies}
               loading={loadingMovies}
             />
-          ) : (
+          ) : activeView === 'master' ? (
             /* Master Known List Management View */
             <MasterListView
               items={masterItems}
@@ -735,6 +931,14 @@ export default function Dashboard() {
               onClearAll={handleClearAllMaster}
               loading={loadingMaster}
             />
+          ) : (
+            /* Starred / Advanced Difficult Words View */
+            <StarredListView
+              items={starredItems}
+              onToggleStar={handleToggleStarFromList}
+              onClearAll={handleClearAllStarred}
+              loading={loadingStarred}
+            />
           )}
         </div>
       </main>
@@ -742,7 +946,7 @@ export default function Dashboard() {
       {/* 3D Flashcards Modal */}
       <FlashcardModal
         isOpen={isFlashcardOpen}
-        items={masterVocabItems}
+        items={activeView === 'starred' ? starredVocabItems : masterVocabItems}
         onClose={() => setIsFlashcardOpen(false)}
         onToggleMaster={(item) => {
           handleRemoveMasterWord(item.word);

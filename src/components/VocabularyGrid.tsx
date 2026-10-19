@@ -11,7 +11,7 @@ interface VocabularyGridProps {
   masteredWords: Set<string>;
   starredWords: Set<string>;
   onToggleMaster: (item: VocabItem) => void;
-  onToggleStar: (word: string) => void;
+  onToggleStar: (word: string, item?: VocabItem) => void;
 }
 
 function cleanAndNormalizeSentence(text: string): string {
@@ -452,7 +452,7 @@ export default function VocabularyGrid({
           </div>
         ) : (
           filtered.slice(0, displayLimit).map((item, idx) => {
-          const key = (item.word || item.sentence || '').toLowerCase();
+          const key = (item.word || item.sentence || '').trim().toLowerCase();
           const isMastered = masteredWords.has(key);
           const isStarred = starredWords.has(key);
 
@@ -471,7 +471,7 @@ export default function VocabularyGrid({
                   <div className="fx-sent-actions">
                     <button
                       type="button"
-                      onClick={() => onToggleStar(key)}
+                      onClick={() => onToggleStar(key, item)}
                       className={`fx-btn-icon-raw ${isStarred ? 'fx-btn-star active' : ''}`}
                       title={isStarred ? 'Bỏ lưu' : 'Lưu cấu trúc'}
                     >
@@ -543,7 +543,7 @@ export default function VocabularyGrid({
                   <div className="fx-sent-actions">
                     <button
                       type="button"
-                      onClick={() => onToggleStar(key)}
+                      onClick={() => onToggleStar(key, item)}
                       className={`fx-btn-icon-raw ${isStarred ? 'fx-btn-star active' : ''}`}
                       title={isStarred ? 'Bỏ lưu' : 'Lưu cụm từ'}
                     >
@@ -622,7 +622,7 @@ export default function VocabularyGrid({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onToggleStar(key)}
+                    onClick={() => onToggleStar(key, item)}
                     className={`fx-btn-icon-raw ${isStarred ? 'fx-btn-star active' : ''}`}
                     title={isStarred ? 'Bỏ đánh dấu' : 'Lưu từ'}
                   >

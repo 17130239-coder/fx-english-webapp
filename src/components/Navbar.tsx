@@ -4,9 +4,10 @@ import React from 'react';
 import { Sun, Moon, Keyboard, Download } from 'lucide-react';
 
 interface NavbarProps {
-  activeView: 'studio' | 'master';
-  onViewChange: (view: 'studio' | 'master') => void;
+  activeView: 'studio' | 'master' | 'starred';
+  onViewChange: (view: 'studio' | 'master' | 'starred') => void;
   masterCount: number;
+  starredCount?: number;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   dbConnected?: boolean;
@@ -22,6 +23,7 @@ export default function Navbar({
   activeView,
   onViewChange,
   masterCount,
+  starredCount = 0,
   theme,
   onToggleTheme,
   dbConnected = false,
@@ -65,6 +67,15 @@ export default function Navbar({
           >
             <span>Đã thuộc</span>
             <span className="fx-nav-pill-count">{masterCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewChange('starred')}
+            className={`fx-nav-tab ${activeView === 'starred' ? 'active' : ''}`}
+            title="Từ vựng khó & nâng cao đã lưu dấu sao"
+          >
+            <span>Đã lưu</span>
+            <span className="fx-nav-pill-count">{starredCount}</span>
           </button>
         </nav>
       </div>

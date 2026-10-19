@@ -98,3 +98,18 @@ export interface MasterItem {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface StarredItem {
+  id: string;
+  text: string;
+  type?: 'word' | 'phrase' | 'pattern' | 'sentence';
+  pos?: string;
+  cefr?: string;
+  ipa?: string;
+  vietnamese?: string;
+  meaningVi?: string;
+  knownMeanings?: string[];
+  context?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

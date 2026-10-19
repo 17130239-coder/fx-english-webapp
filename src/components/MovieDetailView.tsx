@@ -10,7 +10,7 @@ import FlashcardModal from './FlashcardModal';
 import ShortcutsModal from './ShortcutsModal';
 import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
-import { ScannedMovie, VocabItem, MasterItem } from '@/lib/types';
+import { ScannedMovie, VocabItem, MasterItem, StarredItem } from '@/lib/types';
 import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 import { triggerDownload } from '@/lib/export';
 import { MovieDetailSkeleton } from './Skeletons';
@@ -26,9 +26,10 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Master List & States
+  // Master List, Starred List & States
   const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
   const [masteredWords, setMasteredWords] = useState<Set<string>>(new Set());
+  const [starredItems, setStarredItems] = useState<StarredItem[]>([]);
   const [starredWords, setStarredWords] = useState<Set<string>>(new Set());
   const [dbConnected, setDbConnected] = useState<boolean>(true);
 
@@ -255,10 +256,47 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
     }
   }, []);
 
+  // Fetch Starred List (Hydrated instantly from local cache)
+  const fetchStarredList = useCallback(async () => {
+    try {
+      const cachedStarredRaw = localStorage.getItem('fx_cached_starred');
+      if (cachedStarredRaw) {
+        const parsed = JSON.parse(cachedStarredRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setStarredItems(parsed);
+          const set = new Set<string>();
+          parsed.forEach((item: StarredItem) => {
+            if (item && item.text) set.add(item.text.toLowerCase());
+          });
+          setStarredWords(set);
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const res = await fetch('/api/starred');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.items)) {
+        setStarredItems(data.items);
+        const set = new Set<string>();
+        data.items.forEach((item: StarredItem) => {
+          if (item && item.text) set.add(item.text.toLowerCase());
+        });
+        setStarredWords(set);
+        try {
+          localStorage.setItem('fx_cached_starred', JSON.stringify(data.items));
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.warn('Could not connect to /api/starred:', e);
+    }
+  }, []);
+
   useEffect(() => {
     fetchMovie();
     fetchMasterList();
-  }, [fetchMovie, fetchMasterList]);
+    fetchStarredList();
+  }, [fetchMovie, fetchMasterList, fetchStarredList]);
 
   // Toggle Mastered Word (Optimistic Update with instant 0ms UI response & silent rollback, zero popup)
   const handleToggleMaster = async (item: VocabItem) => {
@@ -342,20 +380,86 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
     }
   };
 
-  // Toggle Starred Word
-  const handleToggleStar = (word: string) => {
+  // Toggle Starred Word (Optimistic Update 0ms, syncs to Neon DB, zero popup)
+  const handleToggleStar = async (word: string, item?: VocabItem) => {
     const clean = (word || '').trim().toLowerCase();
-    setStarredWords((prev) => {
-      const next = new Set(prev);
-      if (next.has(clean)) {
+    if (!clean) return;
+
+    const wasStarred = starredWords.has(clean);
+    const prevStarredWords = new Set(starredWords);
+    const prevStarredItems = [...starredItems];
+
+    const meaning = item?.vietnamese || item?.meaningVi || '';
+    const optimisticNewItem: StarredItem = {
+      id: `star_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      text: clean,
+      type: item?.sentence ? 'sentence' : (clean.includes(' ') ? 'phrase' : 'word'),
+      pos: item?.posLabelVi || item?.pos || 'N',
+      cefr: item?.cefr || '',
+      ipa: item?.ipa || '',
+      vietnamese: meaning,
+      meaningVi: meaning,
+      context: item?.contexts?.[0]?.text || item?.sentence || ''
+    };
+
+    // 1. Instant 0ms Optimistic UI Update
+    if (wasStarred) {
+      setStarredWords((prev) => {
+        const next = new Set(prev);
         next.delete(clean);
-        showToast(`Đã bỏ đánh dấu sao "${clean}".`, 'info');
+        return next;
+      });
+      setStarredItems((prev) => {
+        const next = prev.filter((m) => m.text.toLowerCase() !== clean);
+        try {
+          localStorage.setItem('fx_cached_starred', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    } else {
+      setStarredWords((prev) => new Set(prev).add(clean));
+      setStarredItems((prev) => {
+        const next = [optimisticNewItem, ...prev.filter((m) => m.text.toLowerCase() !== clean)];
+        try {
+          localStorage.setItem('fx_cached_starred', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    }
+
+    // 2. Background sync to Neon Database (Silent, NO popup)
+    try {
+      let res: Response;
+      if (wasStarred) {
+        res = await fetch(`/api/starred?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
       } else {
-        next.add(clean);
-        showToast(`Đã đánh dấu sao "${clean}".`, 'success');
+        res = await fetch('/api/starred', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: clean,
+            type: optimisticNewItem.type,
+            pos: optimisticNewItem.pos,
+            cefr: optimisticNewItem.cefr,
+            ipa: optimisticNewItem.ipa,
+            context: optimisticNewItem.context,
+            vietnamese: optimisticNewItem.vietnamese
+          })
+        });
       }
-      return next;
-    });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Server sync error');
+      }
+    } catch (e: any) {
+      console.error('Error syncing starred word, rolling back:', e);
+      setStarredWords(prevStarredWords);
+      setStarredItems(prevStarredItems);
+      try {
+        localStorage.setItem('fx_cached_starred', JSON.stringify(prevStarredItems));
+      } catch (err) {}
+      showToast(`Không thể đồng bộ dấu sao cho "${clean}", đã khôi phục trạng thái.`, 'error');
+    }
   };
 
   // Open Flashcards
@@ -458,11 +562,14 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         onViewChange={(v) => {
           if (v === 'master') {
             router.push('/?view=master');
+          } else if (v === 'starred') {
+            router.push('/?view=starred');
           } else {
             router.push('/');
           }
         }}
         masterCount={masterItems.length}
+        starredCount={starredItems.length}
         theme={theme}
         onToggleTheme={handleToggleTheme}
         dbConnected={true}
