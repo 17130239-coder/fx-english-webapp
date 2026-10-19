@@ -144,7 +144,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: max(14px, env(safe-area-inset-top, 14px)) 28px 14px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 28px 12px;
   background: var(--fx-bg-canvas);
   border-bottom: 1px solid var(--fx-border-subtle);
   position: sticky;
@@ -1964,7 +1964,7 @@ textarea {
   }
 
   .fx-navbar {
-    padding: max(10px, env(safe-area-inset-top, 10px)) 14px 10px;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px;
   }
 
   .fx-nav-brand-group {
