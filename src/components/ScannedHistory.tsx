@@ -44,7 +44,7 @@ export default function ScannedHistory({
 
   if (deduplicatedMovies.length === 0) {
     return (
-      <section className="fx-history-section">
+      <section className="fx-history-section fx-fade-in">
         <div className="fx-section-header">
           <h2>Phim & Video Đã Quét (0)</h2>
         </div>
@@ -59,7 +59,7 @@ export default function ScannedHistory({
   const displayedMovies = isExpanded ? deduplicatedMovies : deduplicatedMovies.slice(0, 6);
 
   return (
-    <section className="fx-history-section">
+    <section className="fx-history-section fx-fade-in">
       <div className="fx-section-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <h2>Phim & Video Đã Quét</h2>

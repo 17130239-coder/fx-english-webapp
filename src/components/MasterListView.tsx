@@ -264,7 +264,7 @@ export default function MasterListView({
   }
 
   return (
-    <div className="fx-master-view">
+    <div className="fx-master-view fx-fade-in">
       {/* Top Header Row */}
       <div className="fx-master-header-row">
         <div className="fx-master-title-wrap">
