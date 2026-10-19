@@ -231,10 +231,10 @@ export default function StarredListView({
               type="button"
               onClick={onClearAll}
               className="fx-btn-ghost-text"
-              style={{ color: 'var(--fx-accent-netflix)' }}
-              title="Xóa toàn bộ từ đã lưu dấu sao"
+              title="Xóa tất cả từ đã lưu dấu sao"
             >
-              <span>Xóa toàn bộ</span>
+              <Trash2 size={13} />
+              <span>Xóa tất cả</span>
             </button>
           )}
         </div>

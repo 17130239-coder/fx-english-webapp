@@ -45,7 +45,14 @@ interface DashboardProps {
 export default function Dashboard({ initialData }: DashboardProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [activeView, setActiveView] = useState<'studio' | 'master' | 'starred'>('studio');
+  const [activeView, setActiveView] = useState<'studio' | 'master' | 'starred'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get('view');
+      if (v === 'master' || v === 'starred') return v;
+    }
+    return 'studio';
+  });
 
   // 1. TanStack Query: Background Batch Sync
   const { isError: dashboardError } = useDashboard(initialData);
@@ -144,6 +151,19 @@ export default function Dashboard({ initialData }: DashboardProps) {
     }, 3800);
   }, []);
 
+  const handleViewChange = useCallback((v: 'studio' | 'master' | 'starred') => {
+    setActiveView(v);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (v === 'studio') {
+        url.searchParams.delete('view');
+      } else {
+        url.searchParams.set('view', v);
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -184,17 +204,17 @@ export default function Dashboard({ initialData }: DashboardProps) {
 
       if (e.key === '1') {
         e.preventDefault();
-        setActiveView('studio');
+        handleViewChange('studio');
         return;
       }
       if (e.key === '2') {
         e.preventDefault();
-        setActiveView('master');
+        handleViewChange('master');
         return;
       }
       if (e.key === '3') {
         e.preventDefault();
-        setActiveView('starred');
+        handleViewChange('starred');
         return;
       }
 
@@ -207,19 +227,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isShortcutsOpen, isFlashcardOpen, modalConfig.isOpen, theme]);
-
-  // URL view parameter sync
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('view') === 'master') {
-        setActiveView('master');
-      } else if (params.get('view') === 'starred') {
-        setActiveView('starred');
-      }
-    }
-  }, []);
+  }, [isShortcutsOpen, isFlashcardOpen, modalConfig.isOpen, theme, handleViewChange]);
 
   // Incremental Revalidation Mutations (#8)
   const toggleMasterMutation = useToggleMasterMutation((err, clean) => {
@@ -284,9 +292,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const handleClearAllStarred = () => {
     setModalConfig({
       isOpen: true,
-      title: 'Xóa toàn bộ từ đã lưu',
+      title: 'Xóa tất cả từ đã lưu',
       message: 'Bạn có chắc chắn muốn xóa TOÀN BỘ từ vựng đã gắn sao khỏi cơ sở dữ liệu? Thao tác này không thể hoàn tác.',
-      confirmText: 'Xóa toàn bộ',
+      confirmText: 'Xóa tất cả',
       cancelText: 'Hủy',
       isDanger: true,
       onConfirm: async () => {
@@ -351,9 +359,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const handleClearAllMovies = () => {
     setModalConfig({
       isOpen: true,
-      title: 'Xóa toàn bộ lịch sử',
+      title: 'Xóa tất cả lịch sử',
       message: 'Bạn có chắc chắn muốn xóa TOÀN BỘ phim đã quét trên Neon Cloud? Thao tác này không thể hoàn tác.',
-      confirmText: 'Xóa toàn bộ',
+      confirmText: 'Xóa tất cả',
       cancelText: 'Hủy',
       isDanger: true,
       onConfirm: async () => {
@@ -535,9 +543,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const handleClearAllMaster = () => {
     setModalConfig({
       isOpen: true,
-      title: 'Xóa toàn bộ Master List',
+      title: 'Xóa tất cả Master List',
       message: 'Bạn có chắc chắn muốn xóa TOÀN BỘ danh sách từ đã biết trên Neon Cloud? Thao tác này không thể hoàn tác.',
-      confirmText: 'Xóa toàn bộ',
+      confirmText: 'Xóa tất cả',
       cancelText: 'Hủy',
       isDanger: true,
       onConfirm: async () => {
@@ -727,7 +735,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
       {/* Top Navbar */}
       <Navbar
         activeView={activeView}
-        onViewChange={(v) => setActiveView(v)}
+        onViewChange={handleViewChange}
         masterCount={masterItems.length}
         starredCount={starredItems.length}
         theme={theme}

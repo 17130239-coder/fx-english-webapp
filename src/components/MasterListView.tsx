@@ -288,10 +288,10 @@ export default function MasterListView({
             type="button"
             onClick={onClearAll}
             className="fx-btn-ghost-text"
-            style={{ color: 'var(--fx-accent-netflix)' }}
-            title="Xóa toàn bộ từ vựng trong Master List"
+            title="Xóa tất cả từ vựng trong Master List"
           >
-            Xóa toàn bộ
+            <Trash2 size={13} />
+            <span>Xóa tất cả</span>
           </button>
         </div>
       </div>

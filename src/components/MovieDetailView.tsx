@@ -15,6 +15,7 @@ import { triggerDownload } from '@/lib/export';
 import { MovieDetailSkeleton } from './Skeletons';
 import { apiClient } from '@/lib/apiClient';
 import {
+  queryKeys,
   useMovieDetail,
   useMasterList,
   useStarredList,
@@ -34,6 +35,7 @@ interface MovieDetailViewProps {
 
 export default function MovieDetailView({ movieId, initialMovie }: MovieDetailViewProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // TanStack Query for Movie Details (#1, #2)
   const {
@@ -283,6 +285,20 @@ export default function MovieDetailView({ movieId, initialMovie }: MovieDetailVi
       onConfirm: async () => {
         try {
           await apiClient.delete(`/api/movies/${encodeURIComponent(movie.id)}`);
+          queryClient.setQueryData<ScannedMovie[]>(queryKeys.movies, (prev) =>
+            prev ? prev.filter((m) => m.id !== movie.id) : []
+          );
+          try {
+            const raw = localStorage.getItem('fx_cached_movies');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              localStorage.setItem(
+                'fx_cached_movies',
+                JSON.stringify(parsed.filter((m: any) => m.id !== movie.id))
+              );
+            }
+            sessionStorage.removeItem(`fx_movie_${movie.id}`);
+          } catch {}
           router.push('/');
         } catch (e: any) {
           console.error('Error deleting movie:', e);
