@@ -40,14 +40,56 @@ export default function Navbar({
           className="fx-nav-brand-btn"
           title="FX English Studio"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/icon.svg"
-            alt="FX English Logo"
-            width={24}
-            height={24}
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 512 512"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
             className="fx-nav-brand-logo"
-          />
+            aria-label="FX English Logo"
+          >
+            <defs>
+              <linearGradient id="fxRedNav" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FF333E" />
+                <stop offset="100%" stopColor="#E50914" />
+              </linearGradient>
+              <filter id="fxRedGlowNav" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="6" stdDeviation="14" floodColor="#E50914" floodOpacity="0.45" />
+              </filter>
+              <mask id="slashGapNav">
+                <rect x="0" y="0" width="512" height="512" fill="white" />
+                <line x1="436" y1="116" x2="236" y2="396" stroke="black" strokeWidth="80" strokeLinecap="round" />
+              </mask>
+            </defs>
+            {/* Letter F */}
+            <path
+              d="M80 104 H224 C235 104 242 111 242 120 V148 C242 157 235 164 224 164 H142 C135 164 130 169 130 176 V224 C130 231 135 236 142 236 H204 C215 236 222 243 222 252 V280 C222 289 215 296 204 296 H142 C135 296 130 301 130 308 V392 C130 401 123 408 114 408 H80 C71 408 64 401 64 392 V120 C64 111 71 104 80 104 Z"
+              fill="currentColor"
+            />
+            {/* Letter X: White / Dark Diagonal Arm 1 with mask gap */}
+            <line
+              x1="236"
+              y1="116"
+              x2="436"
+              y2="396"
+              stroke="currentColor"
+              strokeWidth="58"
+              strokeLinecap="round"
+              mask="url(#slashGapNav)"
+            />
+            {/* Letter X: Dynamic Netflix Red Diagonal Arm 2 */}
+            <line
+              x1="436"
+              y1="116"
+              x2="236"
+              y2="396"
+              stroke="url(#fxRedNav)"
+              strokeWidth="58"
+              strokeLinecap="round"
+              filter="url(#fxRedGlowNav)"
+            />
+          </svg>
         </button>
 
         <nav className="fx-nav-switcher">
