@@ -428,67 +428,49 @@ export default function MovieDetailView({ movieId, initialMovie }: MovieDetailVi
 
       {/* Main Content */}
       <main className="fx-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Breadcrumb Bar */}
+        {/* Top Navigation Bar */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
             gap: '12px',
           }}
         >
           <Link
             href="/"
-            className="fx-btn fx-btn-ghost"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+            className="fx-btn-ghost-text"
+            style={{ fontSize: '13px' }}
           >
-            <ArrowLeft size={16} />
-            <span>Quay lại Studio</span>
+            <ArrowLeft size={15} />
+            <span>Quay lại</span>
           </Link>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             {movie?.url && (
               <a
                 href={movie.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="fx-btn fx-btn-ghost"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+                className="fx-btn-ghost-text"
+                style={{ fontSize: '12px' }}
                 title="Mở video gốc trên tab mới"
               >
-                <ExternalLink size={14} />
-                <span>Mở Video</span>
+                <ExternalLink size={13} />
+                <span>Mở video</span>
               </a>
             )}
 
             <button
               type="button"
-              onClick={handleOpenFlashcards}
-              disabled={loading || vocab.length === 0}
-              className="fx-btn fx-btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
-            >
-              <Layers size={14} />
-              <span>Luyện Flashcards ({vocab.length})</span>
-            </button>
-
-            <button
-              type="button"
               onClick={handleDeleteMovie}
               disabled={loading || !movie}
-              className="fx-btn fx-btn-ghost"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '13px',
-                color: 'var(--fx-accent-red)',
-              }}
+              className="fx-btn-ghost-text"
+              style={{ fontSize: '12px' }}
               title="Xóa tập phim này khỏi Neon Cloud"
             >
-              <Trash2 size={14} />
-              <span>Xóa Phim</span>
+              <Trash2 size={13} />
+              <span>Xóa phim</span>
             </button>
           </div>
         </div>
@@ -510,7 +492,7 @@ export default function MovieDetailView({ movieId, initialMovie }: MovieDetailVi
             <p style={{ color: 'var(--fx-accent-red)', marginBottom: '16px', fontSize: '15px' }}>
               {(queryError as any)?.message || 'Không tìm thấy dữ liệu cho phim này.'}
             </p>
-            <Link href="/" className="fx-btn fx-btn-primary">
+            <Link href="/" className="fx-btn-tesla-primary">
               Quay về trang chủ
             </Link>
           </div>
@@ -524,52 +506,89 @@ export default function MovieDetailView({ movieId, initialMovie }: MovieDetailVi
                 background: 'var(--fx-bg-surface)',
                 border: '1px solid var(--fx-border-subtle)',
                 borderRadius: '8px',
-                padding: '16px 20px',
+                padding: '18px 20px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px',
+                gap: '14px',
               }}
             >
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'baseline',
+                  alignItems: 'flex-start',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: '12px',
+                  gap: '14px',
                 }}
               >
-                <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600, letterSpacing: '-0.01em' }}>
-                  {movie.title}
-                </h1>
-                <span
+                <div style={{ flex: '1 1 280px' }}>
+                  <h1
+                    style={{
+                      margin: 0,
+                      fontSize: '20px',
+                      fontWeight: 600,
+                      letterSpacing: '-0.01em',
+                      color: 'var(--fx-text-primary)',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {movie.title}
+                  </h1>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      flexWrap: 'wrap',
+                      fontSize: '12px',
+                      color: 'var(--fx-text-secondary)',
+                      marginTop: '8px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        fontWeight: 600,
+                        color: 'var(--fx-accent-netflix)',
+                      }}
+                    >
+                      {movie.platform}
+                    </span>
+                    <span>·</span>
+                    <span>{movie.wordCount?.toLocaleString() || 0} từ trong phụ đề</span>
+                    <span>·</span>
+                    <span>{vocab.length} mục từ vựng trích xuất</span>
+                    <span>·</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {movie.dateFormatted || new Date(movie.timestamp || Date.now()).toLocaleDateString('vi-VN')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Primary CTA: Luyện Flashcards */}
+                <button
+                  type="button"
+                  onClick={handleOpenFlashcards}
+                  disabled={loading || vocab.length === 0}
+                  className="fx-btn-tesla-primary-sm"
                   style={{
-                    fontSize: '12px',
-                    color: 'var(--fx-text-muted)',
-                    fontVariantNumeric: 'tabular-nums',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '8px 18px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    borderRadius: '9999px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {movie.dateFormatted || new Date(movie.timestamp || Date.now()).toLocaleDateString('vi-VN')}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  flexWrap: 'wrap',
-                  fontSize: '12px',
-                  color: 'var(--fx-text-secondary)',
-                }}
-              >
-                <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  {movie.platform}
-                </span>
-                <span>·</span>
-                <span>{movie.wordCount?.toLocaleString() || 0} từ trong phụ đề</span>
-                <span>·</span>
-                <span>{vocab.length} mục từ vựng trích xuất</span>
+                  <Layers size={14} />
+                  <span>Luyện Flashcards ({vocab.length})</span>
+                </button>
               </div>
             </div>
 
