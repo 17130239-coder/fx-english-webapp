@@ -5,6 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ExternalLink, Trash2, Layers } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import Navbar from './Navbar';
 import VocabularyGrid from './VocabularyGrid';
 import Toast, { ToastItem } from './Toast';
@@ -501,7 +502,7 @@ export default function MovieDetailView({ movieId, initialMovie }: MovieDetailVi
 
         {/* Loaded Movie Header & Vocab Grid */}
         {movie && (
-          <>
+          <div className="fx-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div
               style={{
                 background: 'var(--fx-bg-surface)',
@@ -565,7 +566,7 @@ export default function MovieDetailView({ movieId, initialMovie }: MovieDetailVi
               onToggleStar={handleToggleStar}
               movieTitle={movie.title}
             />
-          </>
+          </div>
         )}
       </main>
 

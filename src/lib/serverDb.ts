@@ -1,10 +1,11 @@
-import { sql } from '@/lib/neon';
+import { sql, ensureSchema } from '@/lib/neon';
 import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 import { ScannedMovie, MasterItem, StarredItem } from '@/lib/types';
 
 export async function getServerMovies(limit: number = 100): Promise<ScannedMovie[]> {
   if (!sql) return [];
   try {
+    await ensureSchema();
     const rows = await sql`
       SELECT 
         id, 
@@ -35,6 +36,7 @@ export async function getServerMovies(limit: number = 100): Promise<ScannedMovie
 export async function getServerMasterList(): Promise<MasterItem[]> {
   if (!sql) return [];
   try {
+    await ensureSchema();
     const rows = await sql`
       SELECT 
         id, 
@@ -60,6 +62,7 @@ export async function getServerMasterList(): Promise<MasterItem[]> {
 export async function getServerStarredList(): Promise<StarredItem[]> {
   if (!sql) return [];
   try {
+    await ensureSchema();
     const rows = await sql`
       SELECT 
         id, 
@@ -93,6 +96,7 @@ export async function getServerDashboardData() {
   }
 
   try {
+    await ensureSchema();
     const [movies, masterItems, starredItems] = await Promise.all([
       getServerMovies(100),
       getServerMasterList(),
@@ -123,6 +127,7 @@ export async function getServerMovieDetails(
   if (!sql || !id) return null;
 
   try {
+    await ensureSchema();
     const cleanId = decodeURIComponent(id).trim();
     let rows;
 

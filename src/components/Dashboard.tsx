@@ -13,6 +13,9 @@ import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 import { apiClient } from '@/lib/apiClient';
 import {
   useDashboard,
+  useMovies,
+  useMasterList,
+  useStarredList,
   queryKeys,
   useToggleMasterMutation,
   useToggleStarMutation,
@@ -44,17 +47,18 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const queryClient = useQueryClient();
   const [activeView, setActiveView] = useState<'studio' | 'master' | 'starred'>('studio');
 
-  // TanStack Query Batch Hydration (#1, #3)
-  const { data: dashboardData, isLoading, isError } = useDashboard(initialData);
+  // 1. TanStack Query: Background Batch Sync
+  const { isError: dashboardError } = useDashboard(initialData);
 
-  const movies = useMemo(() => dashboardData?.movies || initialData?.movies || [], [dashboardData, initialData]);
-  const masterItems = useMemo(() => dashboardData?.masterItems || initialData?.masterItems || [], [dashboardData, initialData]);
-  const starredItems = useMemo(() => dashboardData?.starredItems || initialData?.starredItems || [], [dashboardData, initialData]);
-  const dbConnected = !isError && (dashboardData?.success ?? initialData?.connected ?? true);
+  // 2. Canonical single-source-of-truth hooks (always in sync across entire app)
+  const { data: movies = [], isLoading: loadingMoviesRaw } = useMovies(initialData?.movies);
+  const { data: masterItems = [], isLoading: loadingMasterRaw } = useMasterList(initialData?.masterItems);
+  const { data: starredItems = [], isLoading: loadingStarredRaw } = useStarredList(initialData?.starredItems);
 
-  const loadingMovies = isLoading && movies.length === 0;
-  const loadingMaster = isLoading && masterItems.length === 0;
-  const loadingStarred = isLoading && starredItems.length === 0;
+  const loadingMovies = loadingMoviesRaw && movies.length === 0;
+  const loadingMaster = loadingMasterRaw && masterItems.length === 0;
+  const loadingStarred = loadingStarredRaw && starredItems.length === 0;
+  const dbConnected = !dashboardError;
 
   const masteredWords = useMemo(() => {
     const set = new Set<string>();
@@ -245,16 +249,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
     };
 
     toggleMasterMutation.mutate({ clean, wasMastered, optimisticItem: optimisticNewItem });
-
-    // Sync to dashboard state cache
-    queryClient.setQueryData(queryKeys.dashboard, (old: any) => {
-      if (!old) return old;
-      const prevItems: MasterItem[] = old.masterItems || [];
-      const nextItems = wasMastered
-        ? prevItems.filter((m) => m.text.toLowerCase() !== clean)
-        : [optimisticNewItem, ...prevItems.filter((m) => m.text.toLowerCase() !== clean)];
-      return { ...old, masterItems: nextItems };
-    });
   };
 
   // Toggle Starred Word
@@ -276,16 +270,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
     };
 
     toggleStarMutation.mutate({ clean, wasStarred, optimisticItem: optimisticNewItem });
-
-    // Sync to dashboard state cache
-    queryClient.setQueryData(queryKeys.dashboard, (old: any) => {
-      if (!old) return old;
-      const prevItems: StarredItem[] = old.starredItems || [];
-      const nextItems = wasStarred
-        ? prevItems.filter((s) => s.text.toLowerCase() !== clean)
-        : [optimisticNewItem, ...prevItems.filter((s) => s.text.toLowerCase() !== clean)];
-      return { ...old, starredItems: nextItems };
-    });
   };
 
   const handleToggleStarFromList = async (item: StarredItem) => {
@@ -310,9 +294,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
         try {
           await apiClient.delete('/api/starred');
           queryClient.setQueryData(queryKeys.starredList, []);
-          queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
-            old ? { ...old, starredItems: [] } : old
-          );
           try {
             localStorage.removeItem('fx_cached_starred');
           } catch {}
@@ -351,9 +332,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
         });
 
         queryClient.setQueryData(queryKeys.movies, nextMovies);
-        queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
-          old ? { ...old, movies: nextMovies } : old
-        );
 
         try {
           await apiClient.delete(`/api/movies/${encodeURIComponent(id)}`);
@@ -383,9 +361,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
         try {
           await apiClient.delete('/api/movies');
           queryClient.setQueryData(queryKeys.movies, []);
-          queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
-            old ? { ...old, movies: [] } : old
-          );
           try {
             localStorage.removeItem('fx_cached_movies');
           } catch {}
@@ -440,9 +415,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
                 if (data.success && data.item) {
                   const updated = [data.item, ...masterItems.filter((x) => x.text !== text)];
                   queryClient.setQueryData(queryKeys.masterList, updated);
-                  queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
-                    old ? { ...old, masterItems: updated } : old
-                  );
+                  try {
+                    localStorage.setItem('fx_cached_master', JSON.stringify(updated));
+                  } catch {}
                   showToast(`Đã lưu "${text}" vào Master List`, 'success');
                 }
               } catch (err: any) {
@@ -471,9 +446,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
           await apiClient.delete(`/api/master-list?text=${encodeURIComponent(clean)}`);
           const updated = masterItems.filter((m) => m.text.toLowerCase() !== clean);
           queryClient.setQueryData(queryKeys.masterList, updated);
-          queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
-            old ? { ...old, masterItems: updated } : old
-          );
+          try {
+            localStorage.setItem('fx_cached_master', JSON.stringify(updated));
+          } catch {}
           showToast(`Đã xóa "${clean}" khỏi Master List`, 'info');
         } catch (err: any) {
           showToast(`Lỗi: ${err.message}`, 'error');
@@ -512,9 +487,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
               item.text.toLowerCase() === clean ? data.item : item
             );
             queryClient.setQueryData(queryKeys.masterList, updated);
-            queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
-              old ? { ...old, masterItems: updated } : old
-            );
+            try {
+              localStorage.setItem('fx_cached_master', JSON.stringify(updated));
+            } catch {}
             showToast(`Đã thêm nghĩa cho "${clean}"`, 'success');
           }
         } catch (err: any) {
@@ -530,7 +505,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
     const item = masterItems.find((m) => m.text.toLowerCase() === clean);
     if (!item) return;
 
-    const remainingMeanings = item.knownMeanings.filter((m) => m !== meaning);
+    const remainingMeanings = (item.knownMeanings || []).filter((m: string) => m !== meaning);
     try {
       const data = await apiClient.post<{ success: boolean; item: MasterItem }>(
         '/api/master-list',
@@ -546,9 +521,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
           x.text.toLowerCase() === clean ? data.item : x
         );
         queryClient.setQueryData(queryKeys.masterList, updated);
-        queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
-          old ? { ...old, masterItems: updated } : old
-        );
+        try {
+          localStorage.setItem('fx_cached_master', JSON.stringify(updated));
+        } catch {}
         showToast(`Đã xóa nghĩa "${meaning}"`, 'info');
       }
     } catch (e: any) {
@@ -570,9 +545,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
         try {
           await apiClient.delete('/api/master-list');
           queryClient.setQueryData(queryKeys.masterList, []);
-          queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
-            old ? { ...old, masterItems: [] } : old
-          );
+          try {
+            localStorage.removeItem('fx_cached_master');
+          } catch {}
           showToast('Đã xóa sạch Master List trên Cloud', 'info');
         } catch (err: any) {
           showToast(`Lỗi: ${err.message}`, 'error');

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/apiClient';
-import { ScannedMovie, MasterItem, StarredItem, VocabItem } from '@/lib/types';
+import { ScannedMovie, MasterItem, StarredItem } from '@/lib/types';
 import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 
 // Query Keys
@@ -12,57 +12,49 @@ export const queryKeys = {
   starredList: ['starred-list'] as const,
 };
 
-interface DashboardResponse {
+export interface DashboardResponse {
   success: boolean;
   movies: ScannedMovie[];
   masterItems: MasterItem[];
   starredItems: StarredItem[];
 }
 
-// 1. Unified Dashboard Hook (Request Deduplication & Batching)
+// 1. Unified Dashboard Batch Sync Hook
 export function useDashboard(initialData?: Partial<DashboardResponse>) {
   const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: queryKeys.dashboard,
     queryFn: async () => {
-      // 1. Check local storage cache for instant hydration
-      let cachedMovies: ScannedMovie[] = [];
-      let cachedMaster: MasterItem[] = [];
-      let cachedStarred: StarredItem[] = [];
-
-      try {
-        const rawM = localStorage.getItem('fx_cached_movies');
-        if (rawM) cachedMovies = JSON.parse(rawM);
-        const rawMas = localStorage.getItem('fx_cached_master');
-        if (rawMas) cachedMaster = JSON.parse(rawMas);
-        const rawS = localStorage.getItem('fx_cached_starred');
-        if (rawS) cachedStarred = JSON.parse(rawS);
-      } catch {}
-
-      // Fetch unified batch endpoint
       const res = await apiClient.get<DashboardResponse>('/api/dashboard');
-      if (res.success) {
-        // Persist to local storage for instant offline / next reload
-        try {
-          if (res.movies) localStorage.setItem('fx_cached_movies', JSON.stringify(res.movies));
-          if (res.masterItems) localStorage.setItem('fx_cached_master', JSON.stringify(res.masterItems));
-          if (res.starredItems) localStorage.setItem('fx_cached_starred', JSON.stringify(res.starredItems));
-        } catch {}
-
-        // Seed individual query caches
-        if (res.movies) queryClient.setQueryData(queryKeys.movies, res.movies);
-        if (res.masterItems) queryClient.setQueryData(queryKeys.masterList, res.masterItems);
-        if (res.starredItems) queryClient.setQueryData(queryKeys.starredList, res.starredItems);
+      if (res && res.success) {
+        if (Array.isArray(res.movies)) {
+          queryClient.setQueryData(queryKeys.movies, res.movies);
+          try {
+            localStorage.setItem('fx_cached_movies', JSON.stringify(res.movies));
+          } catch {}
+        }
+        if (Array.isArray(res.masterItems)) {
+          queryClient.setQueryData(queryKeys.masterList, res.masterItems);
+          try {
+            localStorage.setItem('fx_cached_master', JSON.stringify(res.masterItems));
+          } catch {}
+        }
+        if (Array.isArray(res.starredItems)) {
+          queryClient.setQueryData(queryKeys.starredList, res.starredItems);
+          try {
+            localStorage.setItem('fx_cached_starred', JSON.stringify(res.starredItems));
+          } catch {}
+        }
       }
       return res;
     },
-    initialData: initialData?.movies ? (initialData as DashboardResponse) : undefined,
+    initialData: initialData?.movies && initialData.movies.length > 0 ? (initialData as DashboardResponse) : undefined,
     staleTime: 30 * 1000,
   });
 }
 
-// 2. Movies List Hook
+// 2. Movies List Hook (Canonical source of truth for movies)
 export function useMovies(initialMovies?: ScannedMovie[]) {
   return useQuery({
     queryKey: queryKeys.movies,
@@ -80,7 +72,10 @@ export function useMovies(initialMovies?: ScannedMovie[]) {
       if (initialMovies && initialMovies.length > 0) return initialMovies;
       try {
         const raw = localStorage.getItem('fx_cached_movies');
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
       } catch {}
       return undefined;
     },
@@ -88,7 +83,7 @@ export function useMovies(initialMovies?: ScannedMovie[]) {
   });
 }
 
-// 3. Master List Hook
+// 3. Master List Hook (Canonical source of truth for mastered words)
 export function useMasterList(initialItems?: MasterItem[]) {
   return useQuery({
     queryKey: queryKeys.masterList,
@@ -106,7 +101,10 @@ export function useMasterList(initialItems?: MasterItem[]) {
       if (initialItems && initialItems.length > 0) return initialItems;
       try {
         const raw = localStorage.getItem('fx_cached_master');
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
       } catch {}
       return undefined;
     },
@@ -114,7 +112,7 @@ export function useMasterList(initialItems?: MasterItem[]) {
   });
 }
 
-// 4. Starred List Hook
+// 4. Starred List Hook (Canonical source of truth for starred words)
 export function useStarredList(initialItems?: StarredItem[]) {
   return useQuery({
     queryKey: queryKeys.starredList,
@@ -132,7 +130,10 @@ export function useStarredList(initialItems?: StarredItem[]) {
       if (initialItems && initialItems.length > 0) return initialItems;
       try {
         const raw = localStorage.getItem('fx_cached_starred');
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
       } catch {}
       return undefined;
     },
@@ -187,9 +188,11 @@ export function useToggleMasterMutation(onError?: (err: any, clean: string) => v
       optimisticItem: MasterItem;
     }) => {
       if (wasMastered) {
-        return apiClient.delete(`/api/master-list?text=${encodeURIComponent(clean)}`);
+        return apiClient.delete<{ success: boolean; deleted: string }>(
+          `/api/master-list?text=${encodeURIComponent(clean)}`
+        );
       } else {
-        return apiClient.post('/api/master-list', {
+        return apiClient.post<{ success: boolean; item: MasterItem }>('/api/master-list', {
           text: clean,
           type: optimisticItem.type,
           pos: optimisticItem.pos,
@@ -203,9 +206,15 @@ export function useToggleMasterMutation(onError?: (err: any, clean: string) => v
     onMutate: async ({ clean, wasMastered, optimisticItem }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.masterList });
 
-      const prevMaster = queryClient.getQueryData<MasterItem[]>(queryKeys.masterList) || [];
+      let prevMaster = queryClient.getQueryData<MasterItem[]>(queryKeys.masterList);
+      if (!prevMaster) {
+        try {
+          const raw = localStorage.getItem('fx_cached_master');
+          if (raw) prevMaster = JSON.parse(raw);
+        } catch {}
+      }
+      prevMaster = prevMaster || [];
 
-      // Incremental local cache update (0ms instant response)
       let nextMaster: MasterItem[];
       if (wasMastered) {
         nextMaster = prevMaster.filter((m) => m.text.toLowerCase() !== clean);
@@ -220,6 +229,15 @@ export function useToggleMasterMutation(onError?: (err: any, clean: string) => v
       } catch {}
 
       return { prevMaster };
+    },
+    onSuccess: (data, variables) => {
+      if (data && (data as any).item && !variables.wasMastered) {
+        const serverItem = (data as any).item as MasterItem;
+        queryClient.setQueryData<MasterItem[]>(queryKeys.masterList, (old) => {
+          if (!old) return [serverItem];
+          return old.map((m) => (m.text.toLowerCase() === variables.clean ? serverItem : m));
+        });
+      }
     },
     onError: (err, variables, context) => {
       if (context?.prevMaster) {
@@ -248,9 +266,11 @@ export function useToggleStarMutation(onError?: (err: any, clean: string) => voi
       optimisticItem: StarredItem;
     }) => {
       if (wasStarred) {
-        return apiClient.delete(`/api/starred?text=${encodeURIComponent(clean)}`);
+        return apiClient.delete<{ success: boolean; text: string }>(
+          `/api/starred?text=${encodeURIComponent(clean)}`
+        );
       } else {
-        return apiClient.post('/api/starred', {
+        return apiClient.post<{ success: boolean; item: StarredItem }>('/api/starred', {
           text: clean,
           type: optimisticItem.type,
           pos: optimisticItem.pos,
@@ -264,9 +284,15 @@ export function useToggleStarMutation(onError?: (err: any, clean: string) => voi
     onMutate: async ({ clean, wasStarred, optimisticItem }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.starredList });
 
-      const prevStarred = queryClient.getQueryData<StarredItem[]>(queryKeys.starredList) || [];
+      let prevStarred = queryClient.getQueryData<StarredItem[]>(queryKeys.starredList);
+      if (!prevStarred) {
+        try {
+          const raw = localStorage.getItem('fx_cached_starred');
+          if (raw) prevStarred = JSON.parse(raw);
+        } catch {}
+      }
+      prevStarred = prevStarred || [];
 
-      // Incremental local cache update (0ms instant response)
       let nextStarred: StarredItem[];
       if (wasStarred) {
         nextStarred = prevStarred.filter((s) => s.text.toLowerCase() !== clean);
@@ -281,6 +307,15 @@ export function useToggleStarMutation(onError?: (err: any, clean: string) => voi
       } catch {}
 
       return { prevStarred };
+    },
+    onSuccess: (data, variables) => {
+      if (data && (data as any).item && !variables.wasStarred) {
+        const serverItem = (data as any).item as StarredItem;
+        queryClient.setQueryData<StarredItem[]>(queryKeys.starredList, (old) => {
+          if (!old) return [serverItem];
+          return old.map((s) => (s.text.toLowerCase() === variables.clean ? serverItem : s));
+        });
+      }
     },
     onError: (err, variables, context) => {
       if (context?.prevStarred) {

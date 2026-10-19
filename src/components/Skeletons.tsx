@@ -32,38 +32,6 @@ export function Skeleton({
 }
 
 /**
- * Skeleton for the top navigation bar matching exact layout and dimensions
- */
-export function NavbarSkeleton({ activeView = 'studio' }: { activeView?: string }) {
-  return (
-    <header className="fx-navbar" aria-hidden="true" style={{ pointerEvents: 'none' }}>
-      <div className="fx-nav-brand-group">
-        <div className="fx-nav-brand-btn" style={{ cursor: 'default' }}>
-          <Skeleton width="28px" height="28px" borderRadius="6px" />
-        </div>
-
-        <nav className="fx-nav-switcher">
-          <div className={`fx-nav-tab ${activeView === 'studio' ? 'active' : ''}`} style={{ cursor: 'default' }}>
-            <span>Phim</span>
-          </div>
-          <div className={`fx-nav-tab ${activeView === 'master' ? 'active' : ''}`} style={{ cursor: 'default' }}>
-            <span>Master List</span>
-          </div>
-          <div className={`fx-nav-tab ${activeView === 'starred' ? 'active' : ''}`} style={{ cursor: 'default' }}>
-            <span>Đã gắn sao</span>
-          </div>
-        </nav>
-      </div>
-
-      <div className="fx-nav-tools">
-        <Skeleton width="34px" height="34px" borderRadius="6px" />
-        <Skeleton width="34px" height="34px" borderRadius="6px" />
-      </div>
-    </header>
-  );
-}
-
-/**
  * Skeleton for a single movie card in ScannedHistory
  */
 export function MovieCardSkeleton() {

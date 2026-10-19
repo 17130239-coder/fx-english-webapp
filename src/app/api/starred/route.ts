@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/neon';
+import { sql, ensureSchema } from '@/lib/neon';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +9,7 @@ export async function GET() {
   }
 
   try {
+    await ensureSchema();
     const rows = await sql`
       SELECT 
         id, 
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    await ensureSchema();
     const body = await req.json();
     const { text, type, pos, cefr, ipa, context, vietnamese } = body;
 
@@ -103,6 +105,7 @@ export async function DELETE(req: Request) {
   }
 
   try {
+    await ensureSchema();
     const { searchParams } = new URL(req.url);
     const text = searchParams.get('text');
 
@@ -119,4 +122,8 @@ export async function DELETE(req: Request) {
     console.error('Error deleting starred word:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200 });
 }
