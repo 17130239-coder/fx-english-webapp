@@ -236,60 +236,85 @@ export default function Dashboard() {
   }, [fetchMovies, fetchMasterList]);
 
 
-  // Toggle Mastered Word (Sync with Neon)
+  // Toggle Mastered Word (Optimistic Update with instant 0ms UI response & silent rollback, zero popup)
   const handleToggleMaster = async (item: VocabItem) => {
     const clean = (item.word || item.sentence || '').trim().toLowerCase();
-    const isCurrentlyMastered = masteredWords.has(clean);
+    if (!clean) return;
 
-    if (isCurrentlyMastered) {
-      // Remove
+    const wasMastered = masteredWords.has(clean);
+    const prevMasteredWords = new Set(masteredWords);
+    const prevMasterItems = [...masterItems];
+
+    const meaning = item.vietnamese || item.meaningVi || '';
+    const optimisticNewItem: MasterItem = {
+      id: `m_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      text: clean,
+      type: item.sentence ? 'sentence' : (clean.includes(' ') ? 'phrase' : 'word'),
+      pos: item.posLabelVi || item.pos || 'N',
+      cefr: item.cefr || '',
+      ipa: item.ipa || '',
+      knownMeanings: meaning ? [meaning] : ['Đã thuộc'],
+      context: item.contexts?.[0]?.text || item.sentence || ''
+    };
+
+    // 1. Instant 0ms Optimistic UI Update
+    if (wasMastered) {
       setMasteredWords((prev) => {
         const next = new Set(prev);
         next.delete(clean);
         return next;
       });
-      setMasterItems((prev) => prev.filter((m) => m.text.toLowerCase() !== clean));
-
-      try {
-        await fetch(`/api/master-list?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
-        showToast(`Đã bỏ "${clean}" khỏi Master List`, 'info');
-      } catch (e) {
-        console.error(e);
-      }
+      setMasterItems((prev) => {
+        const next = prev.filter((m) => m.text.toLowerCase() !== clean);
+        try {
+          localStorage.setItem('fx_cached_master', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
     } else {
-      // Add
       setMasteredWords((prev) => new Set(prev).add(clean));
-      const meaning = item.vietnamese || item.meaningVi || '';
-      const newItem: MasterItem = {
-        id: `m_${Date.now()}`,
-        text: clean,
-        type: item.sentence ? 'sentence' : 'word',
-        pos: item.posLabelVi || item.pos || 'N',
-        cefr: item.cefr,
-        ipa: item.ipa,
-        knownMeanings: meaning ? [meaning] : [],
-        context: item.contexts?.[0]?.text || item.sentence || ''
-      };
-      setMasterItems((prev) => [newItem, ...prev]);
+      setMasterItems((prev) => {
+        const next = [optimisticNewItem, ...prev.filter((m) => m.text.toLowerCase() !== clean)];
+        try {
+          localStorage.setItem('fx_cached_master', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    }
 
-      try {
-        await fetch('/api/master-list', {
+    // 2. Background sync to Neon Database (Silent, NO popup)
+    try {
+      let res: Response;
+      if (wasMastered) {
+        res = await fetch(`/api/master-list?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
+      } else {
+        res = await fetch('/api/master-list', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: clean,
-            type: newItem.type,
-            pos: newItem.pos,
-            cefr: newItem.cefr,
-            ipa: newItem.ipa,
-            context: newItem.context,
-            meanings: newItem.knownMeanings
+            type: optimisticNewItem.type,
+            pos: optimisticNewItem.pos,
+            cefr: optimisticNewItem.cefr,
+            ipa: optimisticNewItem.ipa,
+            context: optimisticNewItem.context,
+            meanings: optimisticNewItem.knownMeanings
           })
         });
-        showToast(`Đã thêm "${clean}" vào Master List`, 'success');
-      } catch (e) {
-        console.error(e);
       }
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Server sync error');
+      }
+    } catch (e: any) {
+      console.error('Error syncing master list, rolling back optimistic update:', e);
+      // Rollback to previous state on failure
+      setMasteredWords(prevMasteredWords);
+      setMasterItems(prevMasterItems);
+      try {
+        localStorage.setItem('fx_cached_master', JSON.stringify(prevMasterItems));
+      } catch (err) {}
+      showToast(`Không thể đồng bộ "${clean}", đã khôi phục trạng thái.`, 'error');
     }
   };
 
