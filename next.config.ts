@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  compress: true,
   turbopack: {
     root: path.resolve(__dirname),
   },

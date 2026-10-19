@@ -80,6 +80,7 @@ export interface ScannedMovie {
   patternCount?: number;
   cues?: Array<{ text: string; start: number; end: number }>;
   analysis?: any;
+  vocabulary?: VocabItem[];
 }
 
 export interface MasterItem {

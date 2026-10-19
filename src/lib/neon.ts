@@ -57,6 +57,27 @@ export async function ensureSchema() {
         await sql`ALTER TABLE fx_master_known_list ADD COLUMN IF NOT EXISTS ipa TEXT;`;
         await sql`ALTER TABLE fx_master_known_list ADD COLUMN IF NOT EXISTS context TEXT;`;
 
+        await sql`
+          CREATE TABLE IF NOT EXISTS fx_starred_words (
+            id VARCHAR(100) PRIMARY KEY,
+            text TEXT NOT NULL UNIQUE,
+            type VARCHAR(50) DEFAULT 'word',
+            pos VARCHAR(20) DEFAULT 'N',
+            cefr VARCHAR(10),
+            ipa TEXT,
+            context TEXT,
+            vietnamese TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `;
+
+        // Create performance indexes for frequent query paths
+        await sql`CREATE INDEX IF NOT EXISTS idx_movies_timestamp ON fx_scanned_movies (timestamp DESC);`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_movies_url ON fx_scanned_movies (url);`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_master_text ON fx_master_known_list (text);`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_starred_text ON fx_starred_words (text);`;
+
         schemaEnsured = true;
       } catch (err) {
         console.warn('[Neon Serverless] Schema ensure warning:', err);

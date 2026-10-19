@@ -1,4 +1,7 @@
+import { Suspense } from 'react';
 import MovieDetailView from '@/components/MovieDetailView';
+import { getServerMovieDetails } from '@/lib/serverDb';
+import { MovieDetailSkeleton } from '@/components/Skeletons';
 
 function safeDecode(val: string): string {
   try {
@@ -14,5 +17,14 @@ export default async function MoviePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <MovieDetailView movieId={safeDecode(id || '')} />;
+  const cleanId = safeDecode(id || '');
+
+  // Server-Side Data Fetching (RSC)
+  const initialMovie = await getServerMovieDetails(cleanId);
+
+  return (
+    <Suspense fallback={<MovieDetailSkeleton count={9} />}>
+      <MovieDetailView movieId={cleanId} initialMovie={initialMovie} />
+    </Suspense>
+  );
 }

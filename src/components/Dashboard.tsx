@@ -1,33 +1,76 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import Navbar from './Navbar';
 import ScannedHistory from './ScannedHistory';
-import MasterListView from './MasterListView';
-import StarredListView from './StarredListView';
-import FlashcardModal from './FlashcardModal';
-import ShortcutsModal from './ShortcutsModal';
-import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem, StarredItem } from '@/lib/types';
 import { triggerDownload } from '@/lib/export';
 import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
+import { apiClient } from '@/lib/apiClient';
+import {
+  useDashboard,
+  queryKeys,
+  useToggleMasterMutation,
+  useToggleStarMutation,
+} from '@/lib/queries';
+import { MasterListSkeleton } from './Skeletons';
 
-export default function Dashboard() {
+// Code Splitting & Dynamic Imports (#9)
+const FlashcardModal = dynamic(() => import('./FlashcardModal'), { ssr: false });
+const ShortcutsModal = dynamic(() => import('./ShortcutsModal'), { ssr: false });
+const TeslaModal = dynamic(() => import('./TeslaModal'), { ssr: false });
+const MasterListView = dynamic(() => import('./MasterListView'), {
+  loading: () => <MasterListSkeleton count={8} />,
+});
+const StarredListView = dynamic(() => import('./StarredListView'), {
+  loading: () => <MasterListSkeleton count={8} />,
+});
+
+interface DashboardProps {
+  initialData?: {
+    movies: ScannedMovie[];
+    masterItems: MasterItem[];
+    starredItems: StarredItem[];
+    connected: boolean;
+  };
+}
+
+export default function Dashboard({ initialData }: DashboardProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeView, setActiveView] = useState<'studio' | 'master' | 'starred'>('studio');
-  const [movies, setMovies] = useState<ScannedMovie[]>([]);
-  const [loadingMovies, setLoadingMovies] = useState<boolean>(true);
-  const [loadingMaster, setLoadingMaster] = useState<boolean>(true);
-  const [loadingStarred, setLoadingStarred] = useState<boolean>(true);
 
-  // Master List & States
-  const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
-  const [masteredWords, setMasteredWords] = useState<Set<string>>(new Set());
-  const [starredItems, setStarredItems] = useState<StarredItem[]>([]);
-  const [starredWords, setStarredWords] = useState<Set<string>>(new Set());
-  const [dbConnected, setDbConnected] = useState<boolean>(false);
+  // TanStack Query Batch Hydration (#1, #3)
+  const { data: dashboardData, isLoading, isError } = useDashboard(initialData);
+
+  const movies = useMemo(() => dashboardData?.movies || initialData?.movies || [], [dashboardData, initialData]);
+  const masterItems = useMemo(() => dashboardData?.masterItems || initialData?.masterItems || [], [dashboardData, initialData]);
+  const starredItems = useMemo(() => dashboardData?.starredItems || initialData?.starredItems || [], [dashboardData, initialData]);
+  const dbConnected = !isError && (dashboardData?.success ?? initialData?.connected ?? true);
+
+  const loadingMovies = isLoading && movies.length === 0;
+  const loadingMaster = isLoading && masterItems.length === 0;
+  const loadingStarred = isLoading && starredItems.length === 0;
+
+  const masteredWords = useMemo(() => {
+    const set = new Set<string>();
+    masterItems.forEach((item) => {
+      if (item && item.text) set.add(item.text.toLowerCase());
+    });
+    return set;
+  }, [masterItems]);
+
+  const starredWords = useMemo(() => {
+    const set = new Set<string>();
+    starredItems.forEach((item) => {
+      if (item && item.text) set.add(item.text.toLowerCase());
+    });
+    return set;
+  }, [starredItems]);
 
   // Theme State (Dark / Light)
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -40,7 +83,7 @@ export default function Dashboard() {
       } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
         setTheme('light');
       }
-    } catch (e) {}
+    } catch {}
   }, []);
 
   const handleToggleTheme = () => {
@@ -58,7 +101,7 @@ export default function Dashboard() {
         document.documentElement.setAttribute('data-theme', 'dark');
         localStorage.setItem('fx-theme', 'dark');
       }
-    } catch (e) {}
+    } catch {}
   };
 
   // Flashcards & Shortcuts Modal State
@@ -83,8 +126,19 @@ export default function Dashboard() {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => {},
   });
+
+  // Toasts State
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const showToast = useCallback((message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3800);
+  }, []);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -96,7 +150,6 @@ export default function Dashboard() {
           active.tagName === 'TEXTAREA' ||
           (active as HTMLElement).isContentEditable);
 
-      // '?' toggles shortcuts modal even if not in input
       if ((e.key === '?' || (e.key === '/' && e.shiftKey)) && !isInput) {
         e.preventDefault();
         setIsShortcutsOpen((prev) => !prev);
@@ -115,24 +168,36 @@ export default function Dashboard() {
         }
       }
 
-      // If user is currently typing in an input or modal is open, skip single-letter shortcuts
       if (isInput || isShortcutsOpen || isFlashcardOpen || modalConfig.isOpen) {
         return;
       }
 
-      // Theme toggle
       if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         handleToggleTheme();
+        return;
       }
 
-      // Quick view navigation
       if (e.key === '1') {
         e.preventDefault();
         setActiveView('studio');
-      } else if (e.key === '2') {
+        return;
+      }
+      if (e.key === '2') {
         e.preventDefault();
         setActiveView('master');
+        return;
+      }
+      if (e.key === '3') {
+        e.preventDefault();
+        setActiveView('starred');
+        return;
+      }
+
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        handleOpenFlashcards();
+        return;
       }
     };
 
@@ -140,129 +205,8 @@ export default function Dashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isShortcutsOpen, isFlashcardOpen, modalConfig.isOpen, theme]);
 
-  // Toasts State
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  const showToast = useCallback((message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3800);
-  }, []);
-
-  // 1. Fetch Movies from Neon Serverless
-  const fetchMovies = useCallback(async () => {
-    try {
-      const res = await fetch('/api/movies');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.movies)) {
-        setMovies(data.movies);
-        setDbConnected(true);
-        try {
-          localStorage.setItem('fx_cached_movies', JSON.stringify(data.movies));
-        } catch (e) {}
-      } else {
-        setDbConnected(false);
-      }
-    } catch (e) {
-      console.warn('Could not connect to /api/movies:', e);
-      setDbConnected(false);
-    } finally {
-      setLoadingMovies(false);
-    }
-  }, []);
-
-  // 2. Fetch Master List from Neon Serverless
-  const fetchMasterList = useCallback(async () => {
-    try {
-      const res = await fetch('/api/master-list');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.items)) {
-        setMasterItems(data.items);
-        const set = new Set<string>();
-        data.items.forEach((item: MasterItem) => {
-          if (item && item.text) set.add(item.text.toLowerCase());
-        });
-        setMasteredWords(set);
-        try {
-          localStorage.setItem('fx_cached_master', JSON.stringify(data.items));
-        } catch (e) {}
-      }
-    } catch (e) {
-      console.warn('Could not connect to /api/master-list:', e);
-    } finally {
-      setLoadingMaster(false);
-    }
-  }, []);
-
-  // 3. Fetch Starred List from Neon Serverless
-  const fetchStarredList = useCallback(async () => {
-    try {
-      const res = await fetch('/api/starred');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.items)) {
-        setStarredItems(data.items);
-        const set = new Set<string>();
-        data.items.forEach((item: StarredItem) => {
-          if (item && item.text) set.add(item.text.toLowerCase());
-        });
-        setStarredWords(set);
-        try {
-          localStorage.setItem('fx_cached_starred', JSON.stringify(data.items));
-        } catch (e) {}
-      }
-    } catch (e) {
-      console.warn('Could not connect to /api/starred:', e);
-    } finally {
-      setLoadingStarred(false);
-    }
-  }, []);
-
+  // URL view parameter sync
   useEffect(() => {
-    // 1. Instant Cache Hydration (SWR Pattern for 0ms First Paint)
-    try {
-      const cachedMoviesRaw = localStorage.getItem('fx_cached_movies');
-      if (cachedMoviesRaw) {
-        const parsed = JSON.parse(cachedMoviesRaw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setMovies(parsed);
-          setLoadingMovies(false);
-          setDbConnected(true);
-        }
-      }
-
-      const cachedMasterRaw = localStorage.getItem('fx_cached_master');
-      if (cachedMasterRaw) {
-        const parsed = JSON.parse(cachedMasterRaw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setMasterItems(parsed);
-          const set = new Set<string>();
-          parsed.forEach((item: MasterItem) => {
-            if (item && item.text) set.add(item.text.toLowerCase());
-          });
-          setMasteredWords(set);
-          setLoadingMaster(false);
-        }
-      }
-
-      const cachedStarredRaw = localStorage.getItem('fx_cached_starred');
-      if (cachedStarredRaw) {
-        const parsed = JSON.parse(cachedStarredRaw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setStarredItems(parsed);
-          const set = new Set<string>();
-          parsed.forEach((item: StarredItem) => {
-            if (item && item.text) set.add(item.text.toLowerCase());
-          });
-          setStarredWords(set);
-          setLoadingStarred(false);
-        }
-      }
-    } catch (e) {
-      console.warn('Local cache hydration error:', e);
-    }
-
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('view') === 'master') {
@@ -271,209 +215,85 @@ export default function Dashboard() {
         setActiveView('starred');
       }
     }
+  }, []);
 
-    // 2. Silent Background Revalidation
-    fetchMovies();
-    fetchMasterList();
-    fetchStarredList();
-  }, [fetchMovies, fetchMasterList, fetchStarredList]);
+  // Incremental Revalidation Mutations (#8)
+  const toggleMasterMutation = useToggleMasterMutation((err, clean) => {
+    showToast(`Không thể đồng bộ "${clean}", đã khôi phục trạng thái.`, 'error');
+  });
 
+  const toggleStarMutation = useToggleStarMutation((err, clean) => {
+    showToast(`Không thể đồng bộ "${clean}", đã khôi phục trạng thái.`, 'error');
+  });
 
-  // Toggle Mastered Word (Optimistic Update with instant 0ms UI response & silent rollback, zero popup)
+  // Toggle Mastered Word
   const handleToggleMaster = async (item: VocabItem) => {
     const clean = (item.word || item.sentence || '').trim().toLowerCase();
     if (!clean) return;
 
     const wasMastered = masteredWords.has(clean);
-    const prevMasteredWords = new Set(masteredWords);
-    const prevMasterItems = [...masterItems];
-
     const meaning = item.vietnamese || item.meaningVi || '';
     const optimisticNewItem: MasterItem = {
       id: `m_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       text: clean,
-      type: item.sentence ? 'sentence' : (clean.includes(' ') ? 'phrase' : 'word'),
+      type: item.sentence ? 'sentence' : clean.includes(' ') ? 'phrase' : 'word',
       pos: item.posLabelVi || item.pos || 'N',
       cefr: item.cefr || '',
       ipa: item.ipa || '',
       knownMeanings: meaning ? [meaning] : ['Đã thuộc'],
-      context: item.contexts?.[0]?.text || item.sentence || ''
+      context: item.contexts?.[0]?.text || item.sentence || '',
     };
 
-    // 1. Instant 0ms Optimistic UI Update
-    if (wasMastered) {
-      setMasteredWords((prev) => {
-        const next = new Set(prev);
-        next.delete(clean);
-        return next;
-      });
-      setMasterItems((prev) => {
-        const next = prev.filter((m) => m.text.toLowerCase() !== clean);
-        try {
-          localStorage.setItem('fx_cached_master', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-    } else {
-      setMasteredWords((prev) => new Set(prev).add(clean));
-      setMasterItems((prev) => {
-        const next = [optimisticNewItem, ...prev.filter((m) => m.text.toLowerCase() !== clean)];
-        try {
-          localStorage.setItem('fx_cached_master', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-    }
+    toggleMasterMutation.mutate({ clean, wasMastered, optimisticItem: optimisticNewItem });
 
-    // 2. Background sync to Neon Database (Silent, NO popup)
-    try {
-      let res: Response;
-      if (wasMastered) {
-        res = await fetch(`/api/master-list?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
-      } else {
-        res = await fetch('/api/master-list', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: clean,
-            type: optimisticNewItem.type,
-            pos: optimisticNewItem.pos,
-            cefr: optimisticNewItem.cefr,
-            ipa: optimisticNewItem.ipa,
-            context: optimisticNewItem.context,
-            meanings: optimisticNewItem.knownMeanings
-          })
-        });
-      }
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Server sync error');
-      }
-    } catch (e: any) {
-      console.error('Error syncing master list, rolling back optimistic update:', e);
-      // Rollback to previous state on failure
-      setMasteredWords(prevMasteredWords);
-      setMasterItems(prevMasterItems);
-      try {
-        localStorage.setItem('fx_cached_master', JSON.stringify(prevMasterItems));
-      } catch (err) {}
-      showToast(`Không thể đồng bộ "${clean}", đã khôi phục trạng thái.`, 'error');
-    }
+    // Sync to dashboard state cache
+    queryClient.setQueryData(queryKeys.dashboard, (old: any) => {
+      if (!old) return old;
+      const prevItems: MasterItem[] = old.masterItems || [];
+      const nextItems = wasMastered
+        ? prevItems.filter((m) => m.text.toLowerCase() !== clean)
+        : [optimisticNewItem, ...prevItems.filter((m) => m.text.toLowerCase() !== clean)];
+      return { ...old, masterItems: nextItems };
+    });
   };
 
-  // Toggle Starred Word (Optimistic Update 0ms, syncs to Neon DB, zero popup)
+  // Toggle Starred Word
   const handleToggleStar = async (word: string, item?: VocabItem) => {
     const clean = word.trim().toLowerCase();
     if (!clean) return;
 
     const wasStarred = starredWords.has(clean);
-    const prevStarredWords = new Set(starredWords);
-    const prevStarredItems = [...starredItems];
-
     const meaning = item?.vietnamese || item?.meaningVi || '';
     const optimisticNewItem: StarredItem = {
       id: `star_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       text: clean,
-      type: item?.sentence ? 'sentence' : (clean.includes(' ') ? 'phrase' : 'word'),
+      type: item?.sentence ? 'sentence' : clean.includes(' ') ? 'phrase' : 'word',
       pos: item?.posLabelVi || item?.pos || 'N',
       cefr: item?.cefr || '',
       ipa: item?.ipa || '',
+      context: item?.contexts?.[0]?.text || item?.sentence || '',
       vietnamese: meaning,
-      meaningVi: meaning,
-      context: item?.contexts?.[0]?.text || item?.sentence || ''
     };
 
-    // 1. Instant 0ms Optimistic UI Update
-    if (wasStarred) {
-      setStarredWords((prev) => {
-        const next = new Set(prev);
-        next.delete(clean);
-        return next;
-      });
-      setStarredItems((prev) => {
-        const next = prev.filter((m) => m.text.toLowerCase() !== clean);
-        try {
-          localStorage.setItem('fx_cached_starred', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-    } else {
-      setStarredWords((prev) => new Set(prev).add(clean));
-      setStarredItems((prev) => {
-        const next = [optimisticNewItem, ...prev.filter((m) => m.text.toLowerCase() !== clean)];
-        try {
-          localStorage.setItem('fx_cached_starred', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-    }
+    toggleStarMutation.mutate({ clean, wasStarred, optimisticItem: optimisticNewItem });
 
-    // 2. Background sync to Neon Database (Silent, NO popup)
-    try {
-      let res: Response;
-      if (wasStarred) {
-        res = await fetch(`/api/starred?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
-      } else {
-        res = await fetch('/api/starred', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: clean,
-            type: optimisticNewItem.type,
-            pos: optimisticNewItem.pos,
-            cefr: optimisticNewItem.cefr,
-            ipa: optimisticNewItem.ipa,
-            context: optimisticNewItem.context,
-            vietnamese: optimisticNewItem.vietnamese
-          })
-        });
-      }
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Server sync error');
-      }
-    } catch (e: any) {
-      console.error('Error syncing starred word, rolling back:', e);
-      setStarredWords(prevStarredWords);
-      setStarredItems(prevStarredItems);
-      try {
-        localStorage.setItem('fx_cached_starred', JSON.stringify(prevStarredItems));
-      } catch (err) {}
-      showToast(`Không thể đồng bộ dấu sao cho "${clean}", đã khôi phục trạng thái.`, 'error');
-    }
+    // Sync to dashboard state cache
+    queryClient.setQueryData(queryKeys.dashboard, (old: any) => {
+      if (!old) return old;
+      const prevItems: StarredItem[] = old.starredItems || [];
+      const nextItems = wasStarred
+        ? prevItems.filter((s) => s.text.toLowerCase() !== clean)
+        : [optimisticNewItem, ...prevItems.filter((s) => s.text.toLowerCase() !== clean)];
+      return { ...old, starredItems: nextItems };
+    });
   };
 
-  // Toggle star directly from StarredListView
   const handleToggleStarFromList = async (item: StarredItem) => {
-    const clean = item.text.trim().toLowerCase();
-    const prevItems = [...starredItems];
-    const prevWords = new Set(starredWords);
+    const clean = (item?.text || '').trim().toLowerCase();
+    if (!clean) return;
 
-    setStarredWords((prev) => {
-      const next = new Set(prev);
-      next.delete(clean);
-      return next;
-    });
-    setStarredItems((prev) => {
-      const next = prev.filter((s) => s.text.toLowerCase() !== clean);
-      try {
-        localStorage.setItem('fx_cached_starred', JSON.stringify(next));
-      } catch (e) {}
-      return next;
-    });
-
-    try {
-      const res = await fetch(`/api/starred?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-    } catch (e) {
-      setStarredWords(prevWords);
-      setStarredItems(prevItems);
-      try {
-        localStorage.setItem('fx_cached_starred', JSON.stringify(prevItems));
-      } catch (err) {}
-      showToast(`Không thể đồng bộ bỏ sao cho "${clean}"`, 'error');
-    }
+    const wasStarred = starredWords.has(clean);
+    toggleStarMutation.mutate({ clean, wasStarred, optimisticItem: item });
   };
 
   // Clear All Starred Words
@@ -488,21 +308,23 @@ export default function Dashboard() {
       onConfirm: async () => {
         setModalConfig((m) => ({ ...m, isOpen: false }));
         try {
-          await fetch('/api/starred', { method: 'DELETE' });
-          setStarredItems([]);
-          setStarredWords(new Set());
+          await apiClient.delete('/api/starred');
+          queryClient.setQueryData(queryKeys.starredList, []);
+          queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
+            old ? { ...old, starredItems: [] } : old
+          );
           try {
             localStorage.removeItem('fx_cached_starred');
-          } catch (e) {}
+          } catch {}
           showToast('Đã xóa sạch danh sách từ đã lưu', 'info');
         } catch (err: any) {
           showToast(`Lỗi: ${err.message}`, 'error');
         }
-      }
+      },
     });
   };
 
-  // Delete Movie (Confirmed via TeslaModal popup + cloud sync)
+  // Delete Movie
   const handleDeleteMovie = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -521,30 +343,29 @@ export default function Dashboard() {
         setModalConfig((m) => ({ ...m, isOpen: false }));
         const targetUrl = target?.url?.trim();
 
-        // Optimistically update UI
-        setMovies((prev) => prev.filter((m) => {
+        // Optimistically remove movie from cache
+        const nextMovies = movies.filter((m) => {
           if (m.id === id) return false;
           if (targetUrl && m.url && m.url.trim() === targetUrl) return false;
           return true;
-        }));
+        });
+
+        queryClient.setQueryData(queryKeys.movies, nextMovies);
+        queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
+          old ? { ...old, movies: nextMovies } : old
+        );
 
         try {
-          const res = await fetch(`/api/movies/${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            headers: { 'Cache-Control': 'no-cache' }
-          });
-          const data = await res.json();
-          if (data.success) {
-            showToast(`Đã xóa phim "${movieTitle}" thành công`, 'info');
-          } else {
-            showToast(`Không thể xóa phim: ${data.error || 'Lỗi server'}`, 'error');
-            fetchMovies();
-          }
+          await apiClient.delete(`/api/movies/${encodeURIComponent(id)}`);
+          showToast(`Đã xóa phim "${movieTitle}" thành công`, 'info');
+          try {
+            localStorage.setItem('fx_cached_movies', JSON.stringify(nextMovies));
+          } catch {}
         } catch (err: any) {
-          showToast(`Lỗi kết nối khi xóa: ${err.message}`, 'error');
-          fetchMovies();
+          showToast(`Lỗi khi xóa: ${err.message}`, 'error');
+          queryClient.invalidateQueries({ queryKey: queryKeys.movies });
         }
-      }
+      },
     });
   };
 
@@ -560,13 +381,19 @@ export default function Dashboard() {
       onConfirm: async () => {
         setModalConfig((m) => ({ ...m, isOpen: false }));
         try {
-          await fetch('/api/movies', { method: 'DELETE' });
-          setMovies([]);
+          await apiClient.delete('/api/movies');
+          queryClient.setQueryData(queryKeys.movies, []);
+          queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
+            old ? { ...old, movies: [] } : old
+          );
+          try {
+            localStorage.removeItem('fx_cached_movies');
+          } catch {}
           showToast('Đã xóa sạch lịch sử quét trên Cloud', 'info');
         } catch (err: any) {
           showToast(`Lỗi: ${err.message}`, 'error');
         }
-      }
+      },
     });
   };
 
@@ -586,7 +413,6 @@ export default function Dashboard() {
         if (!text) return;
         setModalConfig((m) => ({ ...m, isOpen: false }));
 
-        // Step 2: Prompt for Meaning
         setTimeout(() => {
           setModalConfig({
             isOpen: true,
@@ -602,29 +428,30 @@ export default function Dashboard() {
               const meanings = (meaningVal || '').split(',').map((s) => s.trim()).filter(Boolean);
 
               try {
-                const res = await fetch('/api/master-list', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
+                const data = await apiClient.post<{ success: boolean; item: MasterItem }>(
+                  '/api/master-list',
+                  {
                     text,
                     type: 'word',
                     pos: 'N',
-                    meanings
-                  })
-                });
-                const data = await res.json();
+                    meanings,
+                  }
+                );
                 if (data.success && data.item) {
-                  setMasterItems((prev) => [data.item, ...prev.filter((x) => x.text !== text)]);
-                  setMasteredWords((prev) => new Set(prev).add(text));
+                  const updated = [data.item, ...masterItems.filter((x) => x.text !== text)];
+                  queryClient.setQueryData(queryKeys.masterList, updated);
+                  queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
+                    old ? { ...old, masterItems: updated } : old
+                  );
                   showToast(`Đã lưu "${text}" vào Master List`, 'success');
                 }
               } catch (err: any) {
                 showToast(`Lỗi: ${err.message}`, 'error');
               }
-            }
+            },
           });
         }, 150);
-      }
+      },
     });
   };
 
@@ -641,18 +468,17 @@ export default function Dashboard() {
       onConfirm: async () => {
         setModalConfig((m) => ({ ...m, isOpen: false }));
         try {
-          await fetch(`/api/master-list?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
-          setMasterItems((prev) => prev.filter((m) => m.text.toLowerCase() !== clean));
-          setMasteredWords((prev) => {
-            const next = new Set(prev);
-            next.delete(clean);
-            return next;
-          });
+          await apiClient.delete(`/api/master-list?text=${encodeURIComponent(clean)}`);
+          const updated = masterItems.filter((m) => m.text.toLowerCase() !== clean);
+          queryClient.setQueryData(queryKeys.masterList, updated);
+          queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
+            old ? { ...old, masterItems: updated } : old
+          );
           showToast(`Đã xóa "${clean}" khỏi Master List`, 'info');
         } catch (err: any) {
           showToast(`Lỗi: ${err.message}`, 'error');
         }
-      }
+      },
     });
   };
 
@@ -674,23 +500,27 @@ export default function Dashboard() {
         setModalConfig((m) => ({ ...m, isOpen: false }));
 
         try {
-          const res = await fetch('/api/master-list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          const data = await apiClient.post<{ success: boolean; item: MasterItem }>(
+            '/api/master-list',
+            {
               text: clean,
-              meanings: [newMeaning]
-            })
-          });
-          const data = await res.json();
+              meanings: [newMeaning],
+            }
+          );
           if (data.success && data.item) {
-            setMasterItems((prev) => prev.map((item) => (item.text.toLowerCase() === clean ? data.item : item)));
+            const updated = masterItems.map((item) =>
+              item.text.toLowerCase() === clean ? data.item : item
+            );
+            queryClient.setQueryData(queryKeys.masterList, updated);
+            queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
+              old ? { ...old, masterItems: updated } : old
+            );
             showToast(`Đã thêm nghĩa cho "${clean}"`, 'success');
           }
         } catch (err: any) {
           showToast(`Lỗi: ${err.message}`, 'error');
         }
-      }
+      },
     });
   };
 
@@ -702,19 +532,23 @@ export default function Dashboard() {
 
     const remainingMeanings = item.knownMeanings.filter((m) => m !== meaning);
     try {
-      const res = await fetch('/api/master-list', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await apiClient.post<{ success: boolean; item: MasterItem }>(
+        '/api/master-list',
+        {
           text: clean,
           type: item.type,
           pos: item.pos,
-          meanings: remainingMeanings
-        })
-      });
-      const data = await res.json();
+          meanings: remainingMeanings,
+        }
+      );
       if (data.success && data.item) {
-        setMasterItems((prev) => prev.map((x) => (x.text.toLowerCase() === clean ? data.item : x)));
+        const updated = masterItems.map((x) =>
+          x.text.toLowerCase() === clean ? data.item : x
+        );
+        queryClient.setQueryData(queryKeys.masterList, updated);
+        queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
+          old ? { ...old, masterItems: updated } : old
+        );
         showToast(`Đã xóa nghĩa "${meaning}"`, 'info');
       }
     } catch (e: any) {
@@ -734,14 +568,16 @@ export default function Dashboard() {
       onConfirm: async () => {
         setModalConfig((m) => ({ ...m, isOpen: false }));
         try {
-          await fetch('/api/master-list', { method: 'DELETE' });
-          setMasterItems([]);
-          setMasteredWords(new Set());
+          await apiClient.delete('/api/master-list');
+          queryClient.setQueryData(queryKeys.masterList, []);
+          queryClient.setQueryData(queryKeys.dashboard, (old: any) =>
+            old ? { ...old, masterItems: [] } : old
+          );
           showToast('Đã xóa sạch Master List trên Cloud', 'info');
         } catch (err: any) {
           showToast(`Lỗi: ${err.message}`, 'error');
         }
-      }
+      },
     });
   };
 
@@ -754,9 +590,8 @@ export default function Dashboard() {
 
     try {
       showToast('Đang tổng hợp dữ liệu từ vựng tất cả các phim...', 'info');
-      const res = await fetch('/api/movies?full=true');
-      const data = await res.json();
-      const rawMovies: any[] = (data.success && Array.isArray(data.movies)) ? data.movies : [];
+      const data = await apiClient.get<{ success: boolean; movies: any[] }>('/api/movies?full=true');
+      const rawMovies: any[] = data.success && Array.isArray(data.movies) ? data.movies : [];
 
       if (rawMovies.length === 0) {
         showToast('Không tìm thấy dữ liệu phim để xuất.', 'warning');
@@ -767,22 +602,30 @@ export default function Dashboard() {
       const processedMovies = rawMovies.map((m) => {
         let analysis = m.analysis;
         if (typeof analysis === 'string') {
-          try { analysis = JSON.parse(analysis); } catch (e) { analysis = {}; }
+          try {
+            analysis = JSON.parse(analysis);
+          } catch {
+            analysis = {};
+          }
         }
         let cues = m.cues;
         if (typeof cues === 'string') {
-          try { cues = JSON.parse(cues); } catch (e) { cues = []; }
+          try {
+            cues = JSON.parse(cues);
+          } catch {
+            cues = [];
+          }
         }
 
         const vocabList = extractVocabFromAnalysis(analysis);
 
-        // Aggregate unique vocabulary across all movies
         vocabList.forEach((v) => {
           const key = (v.word || v.sentence || '').toLowerCase().trim();
           if (!key) return;
           if (allVocabMap.has(key)) {
             const existing = allVocabMap.get(key);
-            existing.totalFrequency = (existing.totalFrequency || existing.frequency || 1) + (v.frequency || 1);
+            existing.totalFrequency =
+              (existing.totalFrequency || existing.frequency || 1) + (v.frequency || 1);
             if (m.title && !existing.foundInMovies.includes(m.title)) {
               existing.foundInMovies.push(m.title);
             }
@@ -790,7 +633,7 @@ export default function Dashboard() {
             allVocabMap.set(key, {
               ...v,
               totalFrequency: v.frequency || 1,
-              foundInMovies: m.title ? [m.title] : []
+              foundInMovies: m.title ? [m.title] : [],
             });
           }
         });
@@ -810,7 +653,7 @@ export default function Dashboard() {
           phraseCount: m.phraseCount,
           patternCount: m.patternCount,
           vocabulary: vocabList,
-          cues: cues || []
+          cues: cues || [],
         };
       });
 
@@ -820,7 +663,7 @@ export default function Dashboard() {
         totalMovies: processedMovies.length,
         totalUniqueVocabulary: allVocabMap.size,
         movies: processedMovies,
-        allUniqueVocabulary: Array.from(allVocabMap.values())
+        allUniqueVocabulary: Array.from(allVocabMap.values()),
       };
 
       triggerDownload(
@@ -828,7 +671,10 @@ export default function Dashboard() {
         `fx_english_all_movies_vocab_${Date.now()}.json`,
         'application/json;charset=utf-8'
       );
-      showToast(`Đã xuất thành công dữ liệu từ vựng của ${processedMovies.length} phim thành file JSON`, 'success');
+      showToast(
+        `Đã xuất thành công dữ liệu từ vựng của ${processedMovies.length} phim thành file JSON`,
+        'success'
+      );
     } catch (err: any) {
       console.error('Error exporting all movies JSON:', err);
       showToast(`Lỗi xuất JSON: ${err.message || 'Lỗi xử lý'}`, 'error');
@@ -858,39 +704,48 @@ export default function Dashboard() {
     }
   };
 
-  const masterVocabItems: VocabItem[] = (masterItems || [])
-    .filter((m): m is MasterItem => Boolean(m && m.text))
-    .map((m) => {
-      const meaning = Array.isArray(m.knownMeanings)
-        ? m.knownMeanings.join(', ')
-        : (typeof m.knownMeanings === 'string' ? m.knownMeanings : '');
-      return {
-        word: m.text,
-        pos: m.pos || 'noun',
-        cefr: m.cefr || 'B1',
-        ipa: m.ipa || '',
-        vietnamese: meaning,
-        meaningVi: meaning,
-        frequency: 1,
-        contexts: m.context ? [{ text: m.context }] : []
-      };
-    });
+  const masterVocabItems: VocabItem[] = useMemo(() => {
+    return (masterItems || [])
+      .filter((m): m is MasterItem => Boolean(m && m.text))
+      .map((m) => {
+        const meaning = Array.isArray(m.knownMeanings)
+          ? m.knownMeanings.join(', ')
+          : typeof m.knownMeanings === 'string'
+          ? m.knownMeanings
+          : '';
+        return {
+          word: m.text,
+          pos: m.pos || 'noun',
+          cefr: m.cefr || 'B1',
+          ipa: m.ipa || '',
+          vietnamese: meaning,
+          meaningVi: meaning,
+          frequency: 1,
+          contexts: m.context ? [{ text: m.context }] : [],
+        };
+      });
+  }, [masterItems]);
 
-  const starredVocabItems: VocabItem[] = (starredItems || [])
-    .filter((s): s is StarredItem => Boolean(s && s.text))
-    .map((s) => {
-      const meaning = s.vietnamese || s.meaningVi || (Array.isArray(s.knownMeanings) ? s.knownMeanings.join(', ') : '');
-      return {
-        word: s.text,
-        pos: s.pos || 'noun',
-        cefr: s.cefr || 'B1',
-        ipa: s.ipa || '',
-        vietnamese: meaning,
-        meaningVi: meaning,
-        frequency: 1,
-        contexts: s.context ? [{ text: s.context }] : []
-      };
-    });
+  const starredVocabItems: VocabItem[] = useMemo(() => {
+    return (starredItems || [])
+      .filter((s): s is StarredItem => Boolean(s && s.text))
+      .map((s) => {
+        const meaning =
+          s.vietnamese ||
+          s.meaningVi ||
+          (Array.isArray(s.knownMeanings) ? s.knownMeanings.join(', ') : '');
+        return {
+          word: s.text,
+          pos: s.pos || 'noun',
+          cefr: s.cefr || 'B1',
+          ipa: s.ipa || '',
+          vietnamese: meaning,
+          meaningVi: meaning,
+          frequency: 1,
+          contexts: s.context ? [{ text: s.context }] : [],
+        };
+      });
+  }, [starredItems]);
 
   return (
     <div className="fx-studio-layout">
@@ -921,7 +776,6 @@ export default function Dashboard() {
               loading={loadingMovies}
             />
           ) : activeView === 'master' ? (
-            /* Master Known List Management View */
             <MasterListView
               items={masterItems}
               onAddWord={handleAddMasterWord}
@@ -932,7 +786,6 @@ export default function Dashboard() {
               loading={loadingMaster}
             />
           ) : (
-            /* Starred / Advanced Difficult Words View */
             <StarredListView
               items={starredItems}
               onToggleStar={handleToggleStarFromList}
@@ -943,39 +796,45 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* 3D Flashcards Modal */}
-      <FlashcardModal
-        isOpen={isFlashcardOpen}
-        items={activeView === 'starred' ? starredVocabItems : masterVocabItems}
-        onClose={() => setIsFlashcardOpen(false)}
-        onToggleMaster={(item) => {
-          handleRemoveMasterWord(item.word);
-        }}
-        onToast={showToast}
-      />
+      {/* 3D Flashcards Modal (Lazy Loaded) */}
+      {isFlashcardOpen && (
+        <FlashcardModal
+          isOpen={isFlashcardOpen}
+          items={activeView === 'starred' ? starredVocabItems : masterVocabItems}
+          onClose={() => setIsFlashcardOpen(false)}
+          onToggleMaster={(item) => {
+            handleRemoveMasterWord(item.word);
+          }}
+          onToast={showToast}
+        />
+      )}
 
-      {/* Shortcuts Cheat Sheet Modal */}
-      <ShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-      />
+      {/* Shortcuts Cheat Sheet Modal (Lazy Loaded) */}
+      {isShortcutsOpen && (
+        <ShortcutsModal
+          isOpen={isShortcutsOpen}
+          onClose={() => setIsShortcutsOpen(false)}
+        />
+      )}
 
-      {/* Reusable Confirmation / Prompt Modal */}
-      <TeslaModal
-        isOpen={modalConfig.isOpen}
-        title={modalConfig.title}
-        subtitle={modalConfig.subtitle}
-        message={modalConfig.message}
-        confirmText={modalConfig.confirmText}
-        cancelText={modalConfig.cancelText}
-        isDanger={modalConfig.isDanger}
-        isPrompt={modalConfig.isPrompt}
-        promptLabel={modalConfig.promptLabel}
-        promptPlaceholder={modalConfig.promptPlaceholder}
-        defaultPromptValue={modalConfig.defaultPromptValue}
-        onConfirm={(val) => modalConfig.onConfirm(val)}
-        onCancel={() => setModalConfig((m) => ({ ...m, isOpen: false }))}
-      />
+      {/* Reusable Confirmation / Prompt Modal (Lazy Loaded) */}
+      {modalConfig.isOpen && (
+        <TeslaModal
+          isOpen={modalConfig.isOpen}
+          title={modalConfig.title}
+          subtitle={modalConfig.subtitle}
+          message={modalConfig.message}
+          confirmText={modalConfig.confirmText}
+          cancelText={modalConfig.cancelText}
+          isDanger={modalConfig.isDanger}
+          isPrompt={modalConfig.isPrompt}
+          promptLabel={modalConfig.promptLabel}
+          promptPlaceholder={modalConfig.promptPlaceholder}
+          defaultPromptValue={modalConfig.defaultPromptValue}
+          onConfirm={(val) => modalConfig.onConfirm(val)}
+          onCancel={() => setModalConfig((m) => ({ ...m, isOpen: false }))}
+        />
+      )}
 
       {/* Tesla Toast Notifications */}
       <Toast toasts={toasts} />

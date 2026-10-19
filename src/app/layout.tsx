@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
+import Providers from '@/components/Providers';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin', 'vietnamese'],
@@ -32,7 +33,9 @@ export const metadata: Metadata = {
       { url: '/icons/icon192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icons/icon512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: '/apple-touch-icon.png',
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
 };
 
@@ -46,7 +49,8 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{
@@ -79,7 +83,9 @@ export default function RootLayout({
         />
       </head>
       <body className={plusJakartaSans.className}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

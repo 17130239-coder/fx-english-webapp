@@ -1,37 +1,77 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ExternalLink, Trash2, Layers } from 'lucide-react';
 import Navbar from './Navbar';
 import VocabularyGrid from './VocabularyGrid';
-import FlashcardModal from './FlashcardModal';
-import ShortcutsModal from './ShortcutsModal';
-import TeslaModal from './TeslaModal';
 import Toast, { ToastItem } from './Toast';
 import { ScannedMovie, VocabItem, MasterItem, StarredItem } from '@/lib/types';
 import { extractVocabFromAnalysis } from '@/lib/vocabExtractor';
 import { triggerDownload } from '@/lib/export';
 import { MovieDetailSkeleton } from './Skeletons';
+import { apiClient } from '@/lib/apiClient';
+import {
+  useMovieDetail,
+  useMasterList,
+  useStarredList,
+  useToggleMasterMutation,
+  useToggleStarMutation,
+} from '@/lib/queries';
+
+// Code Splitting & Dynamic Imports (#9)
+const FlashcardModal = dynamic(() => import('./FlashcardModal'), { ssr: false });
+const ShortcutsModal = dynamic(() => import('./ShortcutsModal'), { ssr: false });
+const TeslaModal = dynamic(() => import('./TeslaModal'), { ssr: false });
 
 interface MovieDetailViewProps {
   movieId: string;
+  initialMovie?: ScannedMovie | null;
 }
 
-export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
+export default function MovieDetailView({ movieId, initialMovie }: MovieDetailViewProps) {
   const router = useRouter();
-  const [movie, setMovie] = useState<ScannedMovie | null>(null);
-  const [vocab, setVocab] = useState<VocabItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Master List, Starred List & States
-  const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
-  const [masteredWords, setMasteredWords] = useState<Set<string>>(new Set());
-  const [starredItems, setStarredItems] = useState<StarredItem[]>([]);
-  const [starredWords, setStarredWords] = useState<Set<string>>(new Set());
-  const [dbConnected, setDbConnected] = useState<boolean>(true);
+  // TanStack Query for Movie Details (#1, #2)
+  const {
+    data: movie,
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useMovieDetail(movieId, initialMovie);
+
+  // Shared Master and Starred Query Hooks (#1)
+  const { data: masterItems = [] } = useMasterList();
+  const { data: starredItems = [] } = useStarredList();
+
+  const masteredWords = useMemo(() => {
+    const set = new Set<string>();
+    masterItems.forEach((item: MasterItem) => {
+      if (item && item.text) set.add(item.text.toLowerCase());
+    });
+    return set;
+  }, [masterItems]);
+
+  const starredWords = useMemo(() => {
+    const set = new Set<string>();
+    starredItems.forEach((item: StarredItem) => {
+      if (item && item.text) set.add(item.text.toLowerCase());
+    });
+    return set;
+  }, [starredItems]);
+
+  const vocab: VocabItem[] = useMemo(() => {
+    if (!movie) return [];
+    if (Array.isArray(movie.vocabulary) && movie.vocabulary.length > 0) {
+      return movie.vocabulary;
+    }
+    if (movie.analysis) {
+      return extractVocabFromAnalysis(movie.analysis);
+    }
+    return [];
+  }, [movie]);
 
   // Flashcards & Shortcuts Modal State
   const [isFlashcardOpen, setIsFlashcardOpen] = useState<boolean>(false);
@@ -40,34 +80,6 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  // Modal State
-  const [modalConfig, setModalConfig] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmText?: string;
-    cancelText?: string;
-    isDanger?: boolean;
-    onConfirm: () => void;
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: () => {}
-  });
-
-  // Toasts State
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  const showToast = useCallback((message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3800);
-  }, []);
-
-  // Sync Theme
   useEffect(() => {
     try {
       const saved = localStorage.getItem('fx-theme');
@@ -76,7 +88,7 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
       } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
         setTheme('light');
       }
-    } catch (e) {}
+    } catch {}
   }, []);
 
   const handleToggleTheme = () => {
@@ -94,8 +106,35 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         document.documentElement.setAttribute('data-theme', 'dark');
         localStorage.setItem('fx-theme', 'dark');
       }
-    } catch (e) {}
+    } catch {}
   };
+
+  // Modal State
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    isDanger?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  // Toasts State
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const showToast = useCallback((message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3800);
+  }, []);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -107,7 +146,6 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
           active.tagName === 'TEXTAREA' ||
           (active as HTMLElement).isContentEditable);
 
-      // '?' toggles shortcuts modal even if not in input
       if ((e.key === '?' || (e.key === '/' && e.shiftKey)) && !isInput) {
         e.preventDefault();
         setIsShortcutsOpen((prev) => !prev);
@@ -120,34 +158,37 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
           setIsShortcutsOpen(false);
           return;
         }
+        if (isFlashcardOpen) {
+          e.preventDefault();
+          setIsFlashcardOpen(false);
+          return;
+        }
         if (isInput) {
           (active as HTMLElement).blur();
           return;
         }
       }
 
-      // If typing in input or any modal is open, skip single-letter shortcuts
       if (isInput || isShortcutsOpen || isFlashcardOpen || modalConfig.isOpen) {
         return;
       }
 
-      // Theme toggle
       if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         handleToggleTheme();
         return;
       }
 
-      // Open Flashcards
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         if (vocab.length > 0) {
           setIsFlashcardOpen(true);
+        } else {
+          showToast('Không có từ vựng nào để tạo Flashcards.', 'warning');
         }
         return;
       }
 
-      // Open Original Video
       if (e.key === 'o' || e.key === 'O') {
         if (movie?.url) {
           e.preventDefault();
@@ -156,7 +197,6 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         return;
       }
 
-      // Back to all movies
       if (e.key === 'b' || e.key === 'B') {
         e.preventDefault();
         router.push('/');
@@ -168,298 +208,56 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isShortcutsOpen, isFlashcardOpen, modalConfig.isOpen, theme, vocab, movie, router]);
 
-  // Fetch Movie Details (Instant Cache Hydration + Silent Background Revalidation)
-  const fetchMovie = useCallback(async () => {
-    let hasCached = false;
-    try {
-      const cached = sessionStorage.getItem(`fx_movie_${movieId}`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.id) {
-          setMovie(parsed);
-          const extracted = Array.isArray(parsed.vocabulary) ? parsed.vocabulary : extractVocabFromAnalysis(parsed.analysis);
-          setVocab(extracted);
-          setLoading(false);
-          hasCached = true;
-        }
-      }
-    } catch (e) {}
+  // Incremental Revalidation Mutations (#8)
+  const toggleMasterMutation = useToggleMasterMutation((err, clean) => {
+    showToast(`Không thể đồng bộ "${clean}", đã khôi phục trạng thái.`, 'error');
+  });
 
-    if (!hasCached) {
-      setLoading(true);
-    }
-    setError(null);
+  const toggleStarMutation = useToggleStarMutation((err, clean) => {
+    showToast(`Không thể đồng bộ dấu sao cho "${clean}", đã khôi phục trạng thái.`, 'error');
+  });
 
-    try {
-      const res = await fetch(`/api/movies/${encodeURIComponent(movieId)}`);
-      const data = await res.json();
-      if (data.success && data.movie) {
-        setMovie(data.movie);
-        const extracted = Array.isArray(data.movie.vocabulary)
-          ? data.movie.vocabulary
-          : extractVocabFromAnalysis(data.movie.analysis);
-        setVocab(extracted);
-        try {
-          sessionStorage.setItem(`fx_movie_${movieId}`, JSON.stringify(data.movie));
-        } catch (e) {}
-      } else {
-        if (!hasCached) {
-          setError(data.error || 'Không tìm thấy dữ liệu cho phim này.');
-        }
-      }
-    } catch (err: any) {
-      console.error('Error fetching movie:', err);
-      if (!hasCached) {
-        setError('Lỗi kết nối cơ sở dữ liệu.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [movieId]);
-
-  // Fetch Master List (Hydrated instantly from local cache)
-  const fetchMasterList = useCallback(async () => {
-    try {
-      const cachedMasterRaw = localStorage.getItem('fx_cached_master');
-      if (cachedMasterRaw) {
-        const parsed = JSON.parse(cachedMasterRaw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setMasterItems(parsed);
-          const set = new Set<string>();
-          parsed.forEach((item: MasterItem) => {
-            if (item && item.text) set.add(item.text.toLowerCase());
-          });
-          setMasteredWords(set);
-          setDbConnected(true);
-        }
-      }
-    } catch (e) {}
-
-    try {
-      const res = await fetch('/api/master-list');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.items)) {
-        setMasterItems(data.items);
-        const set = new Set<string>();
-        data.items.forEach((item: MasterItem) => {
-          if (item && item.text) set.add(item.text.toLowerCase());
-        });
-        setMasteredWords(set);
-        setDbConnected(true);
-        try {
-          localStorage.setItem('fx_cached_master', JSON.stringify(data.items));
-        } catch (e) {}
-      }
-    } catch (e) {
-      console.warn('Could not connect to /api/master-list:', e);
-      setDbConnected(false);
-    }
-  }, []);
-
-  // Fetch Starred List (Hydrated instantly from local cache)
-  const fetchStarredList = useCallback(async () => {
-    try {
-      const cachedStarredRaw = localStorage.getItem('fx_cached_starred');
-      if (cachedStarredRaw) {
-        const parsed = JSON.parse(cachedStarredRaw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setStarredItems(parsed);
-          const set = new Set<string>();
-          parsed.forEach((item: StarredItem) => {
-            if (item && item.text) set.add(item.text.toLowerCase());
-          });
-          setStarredWords(set);
-        }
-      }
-    } catch (e) {}
-
-    try {
-      const res = await fetch('/api/starred');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.items)) {
-        setStarredItems(data.items);
-        const set = new Set<string>();
-        data.items.forEach((item: StarredItem) => {
-          if (item && item.text) set.add(item.text.toLowerCase());
-        });
-        setStarredWords(set);
-        try {
-          localStorage.setItem('fx_cached_starred', JSON.stringify(data.items));
-        } catch (e) {}
-      }
-    } catch (e) {
-      console.warn('Could not connect to /api/starred:', e);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMovie();
-    fetchMasterList();
-    fetchStarredList();
-  }, [fetchMovie, fetchMasterList, fetchStarredList]);
-
-  // Toggle Mastered Word (Optimistic Update with instant 0ms UI response & silent rollback, zero popup)
+  // Toggle Mastered Word
   const handleToggleMaster = async (item: VocabItem) => {
     const clean = (item.word || item.sentence || '').trim().toLowerCase();
     if (!clean) return;
 
     const wasMastered = masteredWords.has(clean);
-    const prevMasteredWords = new Set(masteredWords);
-    const prevMasterItems = [...masterItems];
-
     const meaning = item.vietnamese || item.meaningVi || '';
     const optimisticNewItem: MasterItem = {
       id: `m_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       text: clean,
-      type: item.sentence ? 'sentence' : (clean.includes(' ') ? 'phrase' : 'word'),
+      type: item.sentence ? 'sentence' : clean.includes(' ') ? 'phrase' : 'word',
       pos: item.posLabelVi || item.pos || 'N',
       cefr: item.cefr || '',
       ipa: item.ipa || '',
       knownMeanings: meaning ? [meaning] : ['Đã thuộc'],
-      context: item.contexts?.[0]?.text || item.sentence || ''
+      context: item.contexts?.[0]?.text || item.sentence || '',
     };
 
-    // 1. Instant 0ms Optimistic UI Update
-    if (wasMastered) {
-      setMasteredWords((prev) => {
-        const next = new Set(prev);
-        next.delete(clean);
-        return next;
-      });
-      setMasterItems((prev) => {
-        const next = prev.filter((m) => m.text.toLowerCase() !== clean);
-        try {
-          localStorage.setItem('fx_cached_master', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-    } else {
-      setMasteredWords((prev) => new Set(prev).add(clean));
-      setMasterItems((prev) => {
-        const next = [optimisticNewItem, ...prev.filter((m) => m.text.toLowerCase() !== clean)];
-        try {
-          localStorage.setItem('fx_cached_master', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-    }
-
-    // 2. Background sync to Neon Database (Silent, NO popup)
-    try {
-      let res: Response;
-      if (wasMastered) {
-        res = await fetch(`/api/master-list?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
-      } else {
-        res = await fetch('/api/master-list', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: clean,
-            type: optimisticNewItem.type,
-            pos: optimisticNewItem.pos,
-            cefr: optimisticNewItem.cefr,
-            ipa: optimisticNewItem.ipa,
-            context: optimisticNewItem.context,
-            meanings: optimisticNewItem.knownMeanings
-          })
-        });
-      }
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Server sync error');
-      }
-    } catch (e: any) {
-      console.error('Error syncing master list, rolling back optimistic update:', e);
-      // Rollback to previous state on failure
-      setMasteredWords(prevMasteredWords);
-      setMasterItems(prevMasterItems);
-      try {
-        localStorage.setItem('fx_cached_master', JSON.stringify(prevMasterItems));
-      } catch (err) {}
-      showToast(`Không thể đồng bộ "${clean}", đã khôi phục trạng thái.`, 'error');
-    }
+    toggleMasterMutation.mutate({ clean, wasMastered, optimisticItem: optimisticNewItem });
   };
 
-  // Toggle Starred Word (Optimistic Update 0ms, syncs to Neon DB, zero popup)
+  // Toggle Starred Word
   const handleToggleStar = async (word: string, item?: VocabItem) => {
     const clean = (word || '').trim().toLowerCase();
     if (!clean) return;
 
     const wasStarred = starredWords.has(clean);
-    const prevStarredWords = new Set(starredWords);
-    const prevStarredItems = [...starredItems];
-
     const meaning = item?.vietnamese || item?.meaningVi || '';
     const optimisticNewItem: StarredItem = {
       id: `star_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       text: clean,
-      type: item?.sentence ? 'sentence' : (clean.includes(' ') ? 'phrase' : 'word'),
+      type: item?.sentence ? 'sentence' : clean.includes(' ') ? 'phrase' : 'word',
       pos: item?.posLabelVi || item?.pos || 'N',
       cefr: item?.cefr || '',
       ipa: item?.ipa || '',
       vietnamese: meaning,
       meaningVi: meaning,
-      context: item?.contexts?.[0]?.text || item?.sentence || ''
+      context: item?.contexts?.[0]?.text || item?.sentence || '',
     };
 
-    // 1. Instant 0ms Optimistic UI Update
-    if (wasStarred) {
-      setStarredWords((prev) => {
-        const next = new Set(prev);
-        next.delete(clean);
-        return next;
-      });
-      setStarredItems((prev) => {
-        const next = prev.filter((m) => m.text.toLowerCase() !== clean);
-        try {
-          localStorage.setItem('fx_cached_starred', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-    } else {
-      setStarredWords((prev) => new Set(prev).add(clean));
-      setStarredItems((prev) => {
-        const next = [optimisticNewItem, ...prev.filter((m) => m.text.toLowerCase() !== clean)];
-        try {
-          localStorage.setItem('fx_cached_starred', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
-    }
-
-    // 2. Background sync to Neon Database (Silent, NO popup)
-    try {
-      let res: Response;
-      if (wasStarred) {
-        res = await fetch(`/api/starred?text=${encodeURIComponent(clean)}`, { method: 'DELETE' });
-      } else {
-        res = await fetch('/api/starred', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: clean,
-            type: optimisticNewItem.type,
-            pos: optimisticNewItem.pos,
-            cefr: optimisticNewItem.cefr,
-            ipa: optimisticNewItem.ipa,
-            context: optimisticNewItem.context,
-            vietnamese: optimisticNewItem.vietnamese
-          })
-        });
-      }
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Server sync error');
-      }
-    } catch (e: any) {
-      console.error('Error syncing starred word, rolling back:', e);
-      setStarredWords(prevStarredWords);
-      setStarredItems(prevStarredItems);
-      try {
-        localStorage.setItem('fx_cached_starred', JSON.stringify(prevStarredItems));
-      } catch (err) {}
-      showToast(`Không thể đồng bộ dấu sao cho "${clean}", đã khôi phục trạng thái.`, 'error');
-    }
+    toggleStarMutation.mutate({ clean, wasStarred, optimisticItem: optimisticNewItem });
   };
 
   // Open Flashcards
@@ -483,15 +281,15 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
       isDanger: true,
       onConfirm: async () => {
         try {
-          await fetch(`/api/movies/${encodeURIComponent(movie.id)}`, { method: 'DELETE' });
+          await apiClient.delete(`/api/movies/${encodeURIComponent(movie.id)}`);
           router.push('/');
-        } catch (e) {
+        } catch (e: any) {
           console.error('Error deleting movie:', e);
           showToast('Không thể xóa phim, vui lòng thử lại.', 'error');
         } finally {
           setModalConfig((c) => ({ ...c, isOpen: false }));
         }
-      }
+      },
     });
   };
 
@@ -506,67 +304,100 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
       let fullCues = movie.cues || [];
       if (fullCues.length === 0) {
         try {
-          const res = await fetch(`/api/movies/${encodeURIComponent(movie.id)}?cues=true`);
-          const d = await res.json();
+          const d = await apiClient.get<{ success: boolean; movie: ScannedMovie }>(
+            `/api/movies/${encodeURIComponent(movie.id)}?cues=true`
+          );
           if (d.success && d.movie && Array.isArray(d.movie.cues)) {
             fullCues = d.movie.cues;
           }
-        } catch (e) {}
+        } catch {}
       }
 
       const safeTitle = (movie.title || 'movie').replace(/[^\w\s\-_]/g, '_').trim();
       const exportPayload = {
         exportType: 'single_movie_vocabulary',
+        movieId: movie.id,
+        title: movie.title,
+        platform: movie.platform,
+        url: movie.url,
+        timestamp: movie.timestamp,
+        dateFormatted: movie.dateFormatted,
+        wordCount: movie.wordCount,
+        nounCount: movie.nounCount,
+        verbCount: movie.verbCount,
+        adjCount: movie.adjCount,
+        advCount: movie.advCount,
+        phraseCount: movie.phraseCount,
+        patternCount: movie.patternCount,
+        totalVocabulary: vocab.length,
         exportedAt: new Date().toISOString(),
-        movie: {
-          id: movie.id,
-          title: movie.title,
-          platform: movie.platform,
-          url: movie.url,
-          timestamp: movie.timestamp,
-          dateFormatted: movie.dateFormatted,
-          wordCount: movie.wordCount,
-          nounCount: movie.nounCount,
-          verbCount: movie.verbCount,
-          adjCount: movie.adjCount,
-          advCount: movie.advCount,
-          phraseCount: movie.phraseCount,
-          patternCount: movie.patternCount
-        },
-        vocabularyCount: vocab.length,
         vocabulary: vocab,
-        cues: fullCues
+        cues: fullCues,
       };
 
       triggerDownload(
         JSON.stringify(exportPayload, null, 2),
-        `${safeTitle}_vocab.json`,
+        `fx_english_vocab_${safeTitle}_${Date.now()}.json`,
         'application/json;charset=utf-8'
       );
-      showToast(`Đã xuất dữ liệu phim "${movie.title}" thành file JSON thành công`, 'success');
+      showToast(`Đã xuất từ vựng của phim "${movie.title}" thành file JSON`, 'success');
     } catch (err: any) {
       console.error('Error exporting movie JSON:', err);
-      showToast(`Lỗi xuất JSON: ${err.message || 'Lỗi xử lý'}`, 'error');
+      showToast(`Lỗi xuất file: ${err.message || 'Lỗi không xác định'}`, 'error');
     }
   };
 
-  const isNetflix = movie?.platform === 'netflix' || Boolean(movie?.url && movie.url.includes('netflix.com'));
-  const isYouTube = !isNetflix && (movie?.platform === 'youtube' || Boolean(movie?.url && (movie.url.includes('youtube.com') || movie.url.includes('youtu.be'))));
-  const platformLabel = isNetflix ? 'netflix' : isYouTube ? 'youtube' : (movie?.platform || 'file');
+  // Master vocabulary items for FlashcardModal
+  const masterVocabItems: VocabItem[] = useMemo(() => {
+    return (masterItems || [])
+      .filter((m: MasterItem): m is MasterItem => Boolean(m && m.text))
+      .map((m: MasterItem) => {
+        const meaning = Array.isArray(m.knownMeanings)
+          ? m.knownMeanings.join(', ')
+          : typeof m.knownMeanings === 'string'
+          ? m.knownMeanings
+          : '';
+        return {
+          word: m.text,
+          pos: m.pos || 'noun',
+          cefr: m.cefr || 'B1',
+          ipa: m.ipa || '',
+          vietnamese: meaning,
+          meaningVi: meaning,
+          frequency: 1,
+          contexts: m.context ? [{ text: m.context }] : [],
+        };
+      });
+  }, [masterItems]);
+
+  const starredVocabItems: VocabItem[] = useMemo(() => {
+    return (starredItems || [])
+      .filter((s: StarredItem): s is StarredItem => Boolean(s && s.text))
+      .map((s: StarredItem) => {
+        const meaning =
+          s.vietnamese ||
+          s.meaningVi ||
+          (Array.isArray(s.knownMeanings) ? s.knownMeanings.join(', ') : '');
+        return {
+          word: s.text,
+          pos: s.pos || 'noun',
+          cefr: s.cefr || 'B1',
+          ipa: s.ipa || '',
+          vietnamese: meaning,
+          meaningVi: meaning,
+          frequency: 1,
+          contexts: s.context ? [{ text: s.context }] : [],
+        };
+      });
+  }, [starredItems]);
 
   return (
     <div className="fx-studio-layout">
       {/* Top Navbar */}
       <Navbar
         activeView="studio"
-        onViewChange={(v) => {
-          if (v === 'master') {
-            router.push('/?view=master');
-          } else if (v === 'starred') {
-            router.push('/?view=starred');
-          } else {
-            router.push('/');
-          }
+        onViewChange={(view) => {
+          router.push(`/?view=${view}`);
         }}
         masterCount={masterItems.length}
         starredCount={starredItems.length}
@@ -578,161 +409,200 @@ export default function MovieDetailView({ movieId }: MovieDetailViewProps) {
         exportJsonTitle={`Xuất dữ liệu phim ${movie?.title || ''} (JSON)`}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <main className="fx-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Loading State with Tesla Shimmer Skeleton */}
-        {loading && <MovieDetailSkeleton count={9} />}
+        {/* Breadcrumb Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <Link
+            href="/"
+            className="fx-btn fx-btn-ghost"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+          >
+            <ArrowLeft size={16} />
+            <span>Quay lại Studio</span>
+          </Link>
 
-        {/* Navigation Breadcrumb Bar */}
-        {!loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <Link
-              href="/"
-              className="fx-btn-tesla-ghost-sm"
-              style={{ textDecoration: 'none', gap: '6px' }}
-              title="Quay lại danh sách phim (phím tắt B)"
-            >
-              <ArrowLeft size={13} />
-              <span>Tất cả phim</span>
-            </Link>
-
-            {movie && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={handleOpenFlashcards}
-                  className="fx-btn-tesla-primary-sm"
-                  title="Ôn tập từ vựng phim bằng Flashcards 3D (phím tắt F)"
-                >
-                  <Layers size={13} />
-                  <span>Flashcards</span>
-                </button>
-
-                {movie.url && (
-                  <a
-                    href={movie.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="fx-btn-tesla-ghost-sm"
-                    style={{ textDecoration: 'none', gap: '6px' }}
-                    title="Mở video gốc trên trình duyệt (phím tắt O)"
-                  >
-                    <ExternalLink size={13} />
-                    <span>Xem video gốc</span>
-                  </a>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleDeleteMovie}
-                  className="fx-btn-tesla-ghost-sm"
-                  style={{ color: 'var(--fx-accent-netflix)', gap: '6px' }}
-                  title="Xóa phim này khỏi Cloud"
-                >
-                  <Trash2 size={13} />
-                  <span>Xóa phim</span>
-                </button>
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {movie?.url && (
+              <a
+                href={movie.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="fx-btn fx-btn-ghost"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+                title="Mở video gốc trên tab mới"
+              >
+                <ExternalLink size={14} />
+                <span>Mở Video</span>
+              </a>
             )}
+
+            <button
+              type="button"
+              onClick={handleOpenFlashcards}
+              disabled={loading || vocab.length === 0}
+              className="fx-btn fx-btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+            >
+              <Layers size={14} />
+              <span>Luyện Flashcards ({vocab.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDeleteMovie}
+              disabled={loading || !movie}
+              className="fx-btn fx-btn-ghost"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '13px',
+                color: 'var(--fx-accent-red)',
+              }}
+              title="Xóa tập phim này khỏi Neon Cloud"
+            >
+              <Trash2 size={14} />
+              <span>Xóa Phim</span>
+            </button>
           </div>
-        )}
+        </div>
+
+        {/* Loading Skeleton */}
+        {loading && !movie && <MovieDetailSkeleton count={9} />}
 
         {/* Error State */}
-        {!loading && error && (
-          <div style={{
-            padding: '48px 24px',
-            textAlign: 'center',
-            color: 'var(--fx-accent-netflix)',
-            background: 'var(--fx-bg-surface)',
-            border: '1px solid var(--fx-border-subtle)',
-            borderRadius: '8px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <p style={{ fontSize: '14px', fontWeight: 600 }}>{error}</p>
-            <Link href="/" className="fx-btn-tesla-primary-sm" style={{ textDecoration: 'none' }}>
-              Quay về danh sách phim
-            </Link>
-          </div>
-        )}
-
-        {/* Loaded Movie View */}
-        {!loading && movie && (
-          <>
-            {/* Movie Header Card */}
-            <div style={{
+        {isError && !movie && (
+          <div
+            style={{
+              padding: '48px 24px',
+              textAlign: 'center',
               background: 'var(--fx-bg-surface)',
               border: '1px solid var(--fx-border-subtle)',
               borderRadius: '8px',
-              padding: '16px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px'
-            }}>
-              <h1 style={{
-                fontSize: '22px',
-                fontWeight: 700,
-                color: 'var(--fx-text-primary)',
-                letterSpacing: '-0.02em',
-                lineHeight: 1.3
-              }}>
-                {movie.title}
-              </h1>
+            }}
+          >
+            <p style={{ color: 'var(--fx-accent-red)', marginBottom: '16px', fontSize: '15px' }}>
+              {(queryError as any)?.message || 'Không tìm thấy dữ liệu cho phim này.'}
+            </p>
+            <Link href="/" className="fx-btn fx-btn-primary">
+              Quay về trang chủ
+            </Link>
+          </div>
+        )}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--fx-text-secondary)', flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--fx-text-primary)', fontWeight: 500 }}>
-                  {isNetflix ? 'Netflix' : isYouTube ? 'YouTube' : (movie.platform || 'File')}
+        {/* Loaded Movie Header & Vocab Grid */}
+        {movie && (
+          <>
+            <div
+              style={{
+                background: 'var(--fx-bg-surface)',
+                border: '1px solid var(--fx-border-subtle)',
+                borderRadius: '8px',
+                padding: '16px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
+                <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600, letterSpacing: '-0.01em' }}>
+                  {movie.title}
+                </h1>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--fx-text-muted)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {movie.dateFormatted || new Date(movie.timestamp || Date.now()).toLocaleDateString('vi-VN')}
                 </span>
-                <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
-                <span>{movie.dateFormatted || 'Đã quét'}</span>
-                <span style={{ fontSize: '11px', color: 'var(--fx-text-muted)' }}>·</span>
-                <span>{vocab.length} từ vựng & mẫu câu</span>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                  fontSize: '12px',
+                  color: 'var(--fx-text-secondary)',
+                }}
+              >
+                <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  {movie.platform}
+                </span>
+                <span>·</span>
+                <span>{movie.wordCount?.toLocaleString() || 0} từ trong phụ đề</span>
+                <span>·</span>
+                <span>{vocab.length} mục từ vựng trích xuất</span>
               </div>
             </div>
 
             {/* Vocabulary Grid */}
             <VocabularyGrid
-              movieTitle={movie.title}
               items={vocab}
               masteredWords={masteredWords}
               starredWords={starredWords}
               onToggleMaster={handleToggleMaster}
               onToggleStar={handleToggleStar}
+              movieTitle={movie.title}
             />
           </>
         )}
       </main>
 
-      {/* 3D Flashcards Modal */}
-      <FlashcardModal
-        isOpen={isFlashcardOpen}
-        items={vocab}
-        onClose={() => setIsFlashcardOpen(false)}
-        onToggleMaster={handleToggleMaster}
-        onToast={showToast}
-      />
+      {/* 3D Flashcards Modal (Lazy Loaded) */}
+      {isFlashcardOpen && (
+        <FlashcardModal
+          isOpen={isFlashcardOpen}
+          items={vocab}
+          onClose={() => setIsFlashcardOpen(false)}
+          onToggleMaster={handleToggleMaster}
+          onToast={showToast}
+        />
+      )}
 
-      {/* Shortcuts Cheat Sheet Modal */}
-      <ShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-      />
+      {/* Shortcuts Cheat Sheet Modal (Lazy Loaded) */}
+      {isShortcutsOpen && (
+        <ShortcutsModal
+          isOpen={isShortcutsOpen}
+          onClose={() => setIsShortcutsOpen(false)}
+        />
+      )}
 
-      {/* Confirmation Modal */}
-      <TeslaModal
-        isOpen={modalConfig.isOpen}
-        title={modalConfig.title}
-        message={modalConfig.message}
-        confirmText={modalConfig.confirmText}
-        cancelText={modalConfig.cancelText}
-        isDanger={modalConfig.isDanger}
-        onConfirm={modalConfig.onConfirm}
-        onCancel={() => setModalConfig((c) => ({ ...c, isOpen: false }))}
-      />
+      {/* Confirmation Modal (Lazy Loaded) */}
+      {modalConfig.isOpen && (
+        <TeslaModal
+          isOpen={modalConfig.isOpen}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          confirmText={modalConfig.confirmText}
+          cancelText={modalConfig.cancelText}
+          isDanger={modalConfig.isDanger}
+          onConfirm={modalConfig.onConfirm}
+          onCancel={() => setModalConfig((c) => ({ ...c, isOpen: false }))}
+        />
+      )}
 
-      {/* Toast Stack */}
+      {/* Toast Notifications */}
       <Toast toasts={toasts} />
     </div>
   );
