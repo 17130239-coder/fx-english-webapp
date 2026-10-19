@@ -265,35 +265,27 @@ export default function MasterListView({
 
   return (
     <div className="fx-master-view fx-fade-in">
-      {/* Top Header Row */}
-      <div className="fx-master-header-row">
-        <div className="fx-master-title-wrap">
-          <h2 className="fx-master-title">Từ vựng đã thuộc</h2>
-          <p className="fx-master-desc">
-            Danh sách toàn bộ từ vựng và câu bạn đã thuộc. Dữ liệu được đồng bộ qua Neon Serverless Postgres và dùng để tự động lọc bỏ từ trùng lặp khi quét phim mới.
-          </p>
-        </div>
+      {/* Top Header Actions Row */}
+      <div className="fx-master-header-row" style={{ alignItems: 'center' }}>
+        <button
+          type="button"
+          onClick={onAddWord}
+          className="fx-btn-tesla-primary-sm"
+          title="Thêm từ mới vào Master List (phím tắt N hoặc A)"
+        >
+          <Plus size={13} />
+          <span>Thêm từ</span>
+        </button>
 
-        <div className="fx-master-actions">
-          <button
-            type="button"
-            onClick={onAddWord}
-            className="fx-btn-tesla-primary-sm"
-            title="Thêm từ mới vào Master List (phím tắt N hoặc A)"
-          >
-            <Plus size={13} />
-            <span>Thêm từ</span>
-          </button>
-          <button
-            type="button"
-            onClick={onClearAll}
-            className="fx-btn-ghost-text"
-            title="Xóa tất cả từ vựng trong Master List"
-          >
-            <Trash2 size={13} />
-            <span>Xóa tất cả</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClearAll}
+          className="fx-btn-ghost-text"
+          title="Xóa tất cả từ vựng trong Master List"
+        >
+          <Trash2 size={13} />
+          <span>Xóa tất cả</span>
+        </button>
       </div>
 
       {/* CEFR Distribution Bar */}

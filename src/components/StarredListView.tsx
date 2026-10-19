@@ -216,29 +216,20 @@ export default function StarredListView({
 
   return (
     <div className="fx-master-view fx-fade-in">
-      {/* Top Header Row */}
-      <div className="fx-master-header-row">
-        <div className="fx-master-title-wrap">
-          <h2 className="fx-master-title">Từ vựng khó & Nâng cao</h2>
-          <p className="fx-master-desc">
-            Danh sách các từ vựng và câu thoại đã đánh dấu sao trong quá trình học. Tập trung ôn luyện chuyên sâu các từ vựng nâng cao và khó nhớ.
-          </p>
+      {/* Top Header Actions Row */}
+      {items.length > 0 && (
+        <div className="fx-master-header-row" style={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={onClearAll}
+            className="fx-btn-ghost-text"
+            title="Xóa tất cả từ đã lưu dấu sao"
+          >
+            <Trash2 size={13} />
+            <span>Xóa tất cả</span>
+          </button>
         </div>
-
-        <div className="fx-master-actions">
-          {items.length > 0 && (
-            <button
-              type="button"
-              onClick={onClearAll}
-              className="fx-btn-ghost-text"
-              title="Xóa tất cả từ đã lưu dấu sao"
-            >
-              <Trash2 size={13} />
-              <span>Xóa tất cả</span>
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* CEFR Distribution Bar */}
       {items.length > 0 && (
